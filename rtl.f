@@ -31,4 +31,3 @@ rtl/control_unit.sv
 rtl/core_dbg_fsm.sv
 rtl/rv32imc.sv
 rtl/rv32imc_top.sv
-rtl/rob.sv

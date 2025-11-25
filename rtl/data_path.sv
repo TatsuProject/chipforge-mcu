@@ -726,36 +726,29 @@ module data_path #(
     // additional logic has been added for crypto_unit 
     // add an additional mux here to seelct between aes and sha 
 
-    `ifdef AES_CORE
-
-        logic [31:0] crypto_alu_result_exe;
-        logic crypto_valid;
-        crypto_unit crypto_unit_inst(
-                .rs1(rdata1_frw_exe),
-                .rs2(rdata2_frw_exe),
-                .sha_sel(sha_sel_exe[1:0]),
-                .crypto_result(crypto_result_exe),
-                .crypto_ctrl(alu_t'(alu_ctrl_exe)),
-                .result_valid(crypto_valid)
-                );
-        
-        mux2x1 #(
-            .n(32)
-        ) crypto_alu_mux (
-            .sel(crypto_valid),
-            .in0(alu_result_exe),
-            .in1(crypto_result_exe),
-            .out_(crypto_alu_result_exe)
-        );
-        assign result_exe = crypto_alu_result_exe;
-    `else 
-        assign result_exe = alu_result_exe;
-    `endif
+    logic [31:0] crypto_alu_result_exe;
+    logic crypto_valid;
+    crypto_unit crypto_unit_inst(
+            .rs1(rdata1_frw_exe),
+            .rs2(rdata2_frw_exe),
+            .sha_sel(sha_sel_exe[1:0]),
+            .crypto_result(crypto_result_exe),
+            .crypto_ctrl(alu_t'(alu_ctrl_exe)),
+            .result_valid(crypto_valid)
+            );
+    
+    mux2x1 #(
+        .n(32)
+    ) crypto_alu_mux (
+        .sel(crypto_valid),
+        .in0(alu_result_exe),
+        .in1(crypto_result_exe),
+        .out_(crypto_alu_result_exe)
+    );
 
 
         logic [31:0] pqc_result_mem;
         logic [31:0] pqc_result_wb;
-    `ifdef PQC_CORE
         pqc_top pqc_top_inst (
             .clk, 
             .reset_n,
@@ -765,9 +758,8 @@ module data_path #(
             .inst_28_27_26 (fun7_exe[3:1]),          // bits [28:26] of your decoded instruction
             .result_o      (pqc_result_mem)          
         );
-    `else
-        assign pqc_result_mem = 32'h0;
-    `endif
+
+        assign result_exe = crypto_alu_result_exe;
 
 
 
@@ -985,9 +977,6 @@ module data_path #(
     // ============================================
     //               Exception Encoder
     // ============================================
-
-
-`ifdef CSR_FILE
     logic [5:0]  e_code_mem;
     logic [31:0] mtval;
     logic        exception_mem;
@@ -1020,17 +1009,16 @@ module data_path #(
         .exception_code_o        (e_code_mem[4:0]),
         .mtval_value_o           (mtval)
     );
-`endif
+
 
     // ============================================
     //                   CSR FILE
     // ============================================
 
-    logic [31:0] csr_rdata_mem;
 
-`ifdef CSR_FILE
     logic [1:0]  csr_cmd_mem;
     logic [31:0] csr_wdata_mem;
+    logic [31:0] csr_rdata_mem;
     // logic [31:0] cinst_pc;
     assign csr_cmd_mem   = fun3_mem[1:0];
     assign csr_wdata_mem = fun3_mem[2] ? imm_mem : reg_rdata1_mem; 
@@ -1073,19 +1061,8 @@ module data_path #(
         .mtval_i         (mtval)
     );
 
+    assign dbg_csr_result = trap ? csr_rdata_mem : 'b0;
 
-`else 
-    assign csr_rdata_mem = 32'b0;
-    assign trap         = 1'b0;
-    assign trap_ret     = 1'b0;
-    assign cinst_pc     = 32'h0;
-    assign tvec         = 'b0;
-    assign trap_return_pc = 'b0;
-    assign trap_cause = 'b0;
-`endif
-
-
-    assign dbg_csr_result = csr_rdata_mem;
     // selecting result in the memory stage
     // it can be used in the exe, incase it's needed 
 
