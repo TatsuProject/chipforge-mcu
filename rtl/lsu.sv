@@ -16,30 +16,29 @@ module lsu (
     output logic [31:0] mem_rdata_aligned,
 
     // Interface to memory bus or Wishbone controller
-    output reg         mem_read,
-    output reg         mem_write,
-    output reg [31:0]  mem_addr,
-    output reg [31:0]  mem_wdata,
-    output     [3:0]   mem_wstrb,
-    input      [31:0]  mem_rdata,
-    input              mem_ack,
-    input              mem_err,
+    output wire         mem_read,
+    output wire         mem_write,
+    output wire [31:0]  mem_addr,
+    output wire [31:0]  mem_wdata,
+    output wire [3:0]   mem_wstrb,
+    input  wire [31:0]  mem_rdata,
+    input  wire         mem_ack,
+    input  wire         mem_err,
     // Output to pipeline
-    output reg         stall_mem,
-    output reg [31:0]  result_rd,         // Data to write back to rd
+    output wire         stall_mem,
+    output wire [31:0]  result_rd,         // Data to write back to rd
 
     // Memory Access exceptions 
-    output logic load_addr_malign,
-    output logic store_amo_addr_malign,
-    output logic load_access_fault,
-    output logic store_amo_access_fault
+    output wire load_addr_malign,
+    output wire store_amo_addr_malign,
+    output wire load_access_fault,
+    output wire store_amo_access_fault
 );
 
-    logic [31:0] mem_wdata_unaligned;
 
     // assign core_wb_dat_o = proc_wdata;
     store_aligner store_alignment_unit(
-        .wdata(mem_wdata_unaligned),
+        .wdata(mem_wdata_req),
         .store_type(store_t'(mem_op_mem)),
         .addr(mem_addr[1:0]),
         .mem_write(mem_write),
@@ -57,31 +56,44 @@ module lsu (
 
 
 
-    mem_controller mem_controller_inst (
-        .clk(clk),
-        .rst(rst),
-        .core_halted(core_halted),
-        .is_atomic_mem(is_atomic_mem),
-        .amo_funct5_mem(amo_funct5_mem),
-        .rs2_val_mem(rs2_val_mem),
-        .mem_read_req(mem_read_req),
-        .mem_write_req(mem_write_req),
-        .mem_addr_req(mem_addr_req),
-        .mem_wdata_req(mem_wdata_req),
-        .mem_op_mem(mem_op_mem),
-        .mem_read(mem_read),
-        .mem_write(mem_write),
-        .mem_addr(mem_addr),
-        .mem_wdata(mem_wdata_unaligned),
-        .mem_rdata(mem_rdata_aligned),
-        .mem_ack(mem_ack),
-        .mem_err(mem_err),
-        .stall_mem(stall_mem),
-        .result_rd(result_rd),
-        .load_addr_malign(load_addr_malign),
-        .store_amo_addr_malign(store_amo_addr_malign),
-        .load_access_fault(load_access_fault),
-        .store_amo_access_fault(store_amo_access_fault)
-    );
+    // mem_controller mem_controller_inst (
+    //     .clk(clk),
+    //     .rst(rst),
+    //     .core_halted(core_halted),
+    //     .is_atomic_mem(is_atomic_mem),
+    //     .amo_funct5_mem(amo_funct5_mem),
+    //     .rs2_val_mem(rs2_val_mem),
+    //     .mem_read_req(mem_read_req),
+    //     .mem_write_req(mem_write_req),
+    //     .mem_addr_req(mem_addr_req),
+    //     .mem_wdata_req(mem_wdata_req),
+    //     .mem_op_mem(mem_op_mem),
+    //     .mem_read(mem_read),
+    //     .mem_write(mem_write),
+    //     .mem_addr(mem_addr),
+    //     .mem_wdata(mem_wdata_unaligned),
+    //     .mem_rdata(mem_rdata_aligned),
+    //     .mem_ack(mem_ack),
+    //     .mem_err(mem_err)
+    //     // .stall_mem(stall_mem),
+    //     // .result_rd(result_rd),
+    //     // .load_addr_malign(load_addr_malign),
+    //     // .store_amo_addr_malign(store_amo_addr_malign),
+    //     // .load_access_fault(load_access_fault),
+    //     // .store_amo_access_fault(store_amo_access_fault)
+    // );
+
+
+    assign mem_write              = mem_write_req;
+    assign mem_read               = mem_read_req;
+    assign mem_addr               = mem_addr_req;
+    
+
+    assign stall_mem              = 'b0;
+    assign result_rd              = 'b0;
+    assign load_addr_malign       = 1'b0;
+    assign store_amo_addr_malign  = 1'b0;
+    assign load_access_fault      = 1'b0;
+    assign store_amo_access_fault = 1'b0;
 
 endmodule

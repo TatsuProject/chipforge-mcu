@@ -164,7 +164,7 @@ module data_path #(
     logic [31:0] corrected_pc_if1, corrected_pc_if2;
     logic [31:0] pc_jump_exe, pc_jump_mem;
     logic [31:0] non_mul_result_wb;
-    logic [31:0] tvec, trap_base_pc, trap_pc,  trap_return_pc;
+    logic [31:0] tvec,  trap_return_pc;
     logic [32:0] trap_pc_tmp;
     logic [5:0]  trap_cause;
     logic        trap_ret_id, trap_ret_exe, trap_ret_mem;
@@ -248,46 +248,19 @@ module data_path #(
     // pc adder 
     logic increment_pc_by_2;
     logic hold_pc;
-    logic [31:0] fetch_stall_refetch_pc;
-    // logic inst_fetch_stall_ff;
-    logic inst_fetch_stall_trigger;
-    logic inst_fetch_stall_drop;
     logic if_id_reg_en_ff;
     logic if_id_reg_clr_ff;
 
-    always_ff @(posedge clk, negedge reset_n) begin
-        if (!reset_n)  inst_fetch_stall_ff <= 1'b0;
-        else           inst_fetch_stall_ff <= inst_fetch_stall;
-    end
-
-    assign inst_fetch_stall_trigger =  inst_fetch_stall & ~inst_fetch_stall_ff;
-    assign inst_fetch_stall_drop    = ~inst_fetch_stall &  inst_fetch_stall_ff;
+    assign inst_fetch_stall_ff = 'b0;
 
 
-
-    always_ff @(posedge clk, negedge reset_n) begin
-        if (!reset_n)                     fetch_stall_refetch_pc <= 32'h0;
-        else if(inst_fetch_stall_trigger) begin 
-            if(load_hazard | mul_hazard)                                fetch_stall_refetch_pc <= current_pc_id;
-            else if((inst_valid_if2 | (|inst_if2)) & ~if_id_reg_clr_ff) fetch_stall_refetch_pc <= corrected_pc_if2;
-            else                                                        fetch_stall_refetch_pc <= current_pc_if1;
-        end
-    end
-
-
-    assign pc_plus_4_if1  = (inst_fetch_stall | inst_fetch_stall_ff) ? (fetch_stall_refetch_pc) : (hold_pc ? (corrected_pc_if1) : (corrected_pc_if1 + 4));
+    assign pc_plus_4_if1  = hold_pc ? (corrected_pc_if1) : (corrected_pc_if1 + 4);
     assign pc_minus_2_if1 = current_pc_if1 - 2;
-    assign trap_base_pc   = { tvec[31:2], 2'b00 };
-    assign trap_pc_tmp    = (tvec[1:0] == 2'b01) ? (trap_base_pc + (trap_cause << 2)) : {1'b0,trap_base_pc};
-    assign trap_pc        = trap_pc_tmp[31:0];
 
-    assign no_jump = ~(trap | (trap_ret & dont_trap) | pc_sel_mem); 
+    assign no_jump = ~pc_sel_mem;
 
     always_comb begin 
-        if      (dbg_ret)    next_pc_if1 = dpc;
-        else if (trap)       next_pc_if1 = trap_pc;
-        else if (trap_ret)   next_pc_if1 = trap_return_pc;
-        else if (pc_sel_mem) next_pc_if1 = pc_jump_mem;
+        if (pc_sel_mem)      next_pc_if1 = pc_jump_mem;
         else                 next_pc_if1 = pc_plus_4_if1;
     end
 
@@ -301,7 +274,7 @@ module data_path #(
     ) PC_inst (
         .clk(clk),
         .reset_n(reset_n),
-        .wen(pc_reg_en | ~no_jump | inst_fetch_stall_drop),
+        .wen(pc_reg_en | ~no_jump),
         .data_i(next_pc_if1),
         .data_o(current_pc_if1)
     );
@@ -468,36 +441,31 @@ module data_path #(
     assign sha_sel_id  = rs2_id;
 
 
-    assign csr_inst_id    = sys_inst_id & ~(fun3_id == 0);
-    assign csr_en_id      = csr_inst_id & ~((fun3_id[1] & rs1_id  == 0) | (fun3_id[2] & fun3_id[1] & imm_id==0));
-    assign ecall_inst_id  = sys_inst_id &  (fun3_id == 0) &  (fun12_id == 12'h000);
-    assign ebreak_inst_id = sys_inst_id &  (fun3_id == 0) &  (fun12_id == 12'h001);
-    assign mret_inst_id   = sys_inst_id &  (fun3_id == 0) &  (fun12_id == 12'h302);
-    assign wfi_inst_id    = sys_inst_id &  (fun3_id == 0) &  (fun12_id == 12'h105);
-    assign trap_ret_id    = mret_inst_id;
+    assign csr_inst_id    = 'b0;
+    assign csr_en_id      = 'b0;
+    assign ecall_inst_id  = 'b0;
+    assign ebreak_inst_id = 'b0;
+    assign mret_inst_id   = 'b0;
+    assign wfi_inst_id    = 'b0;
+    assign trap_ret_id    = 'b0;
     assign is_mul_id      = r_type_id   & fun7_id[0] & ~|fun7_id[6:1]    & ~fun3_id[2];
     assign is_div_id      = r_type_id   & fun7_id[0] & ~|fun7_id[6:1]    &  fun3_id[2];
 
-    assign reg_write_id_  = sys_inst_id ? csr_inst_id : reg_write_id; 
+    assign reg_write_id_  = reg_write_id; 
 
     logic [31:0] reg_rdata1, reg_rdata2;
     assign dbg_gpr_rdata = reg_rdata1;
-
-    logic dbg_gpr_write;
-    assign dbg_gpr_write = dbg_ar_en & dbg_ar_wr & 
-                           (dbg_ar_ad>= 32'h1000 && dbg_ar_ad <= 32'h101f);
-
 
 
     // register file (decode stage)
     reg_file reg_file_inst (
         .clk         (clk        ),
         .reset_n     (reset_n    ),
-        .reg_write   (core_halted? dbg_gpr_write  : reg_write_wb),
-        .raddr1      (core_halted? dbg_ar_ad[4:0] : rs1_id),
+        .reg_write   (reg_write_wb),
+        .raddr1      (rs1_id),
         .raddr2      (rs2_id),
-        .waddr       (core_halted? dbg_ar_ad[4:0] : rd_wb),
-        .wdata       (core_halted? dbg_ar_do      : reg_wdata_wb),
+        .waddr       (rd_wb),
+        .wdata       (reg_wdata_wb),
         .rdata1      (reg_rdata1),
         .rdata2      (reg_rdata2)
     );
@@ -747,6 +715,7 @@ module data_path #(
     );
 
 
+`ifdef PQC
         logic [31:0] pqc_result_mem;
         logic [31:0] pqc_result_wb;
         pqc_top pqc_top_inst (
@@ -758,6 +727,7 @@ module data_path #(
             .inst_28_27_26 (fun7_exe[3:1]),          // bits [28:26] of your decoded instruction
             .result_o      (pqc_result_mem)          
         );
+`endif
 
         assign result_exe = crypto_alu_result_exe;
 
@@ -816,7 +786,6 @@ module data_path #(
     imm_exe,
     result_exe,
     rdata1_frw_exe, // send the forwarded rs1 data
-    csr_addr_exe,
     current_pc_exe,
     // control signals
     reg_write_exe,
@@ -826,15 +795,19 @@ module data_path #(
     jump_exe,
     lui_exe,
     zero_exe,
+    is_mul_exe,
+    is_atomic_exe,
+    inst_valid_exe,
+
+`ifdef CSR_FILE
+    csr_addr_exe,
     csr_inst_exe,
     csr_en_exe,
     trap_ret_exe,
-    is_atomic_exe,
-    is_mul_exe,
     ecall_exe,
     illegal_inst_exe,
-    inst_valid_exe,
     ebreak_inst_exe,
+`endif
     is_montgomery_exe,
     inst_exe
     `ifdef tracer 
@@ -846,7 +819,7 @@ module data_path #(
     `ifdef tracer
         .n($bits(exe_mem_reg_t)) // Automatically sets width
     `else 
-        .n(298)
+        .n(280)
     `endif
     ) exe_mem_reg (
         .clk(clk),
@@ -866,7 +839,6 @@ module data_path #(
     assign imm_mem         = exe_mem_bus_o.imm;
     assign alu_result_mem  = exe_mem_bus_o.crypto_alu_result;
     assign reg_rdata1_mem  = exe_mem_bus_o.reg_rdata1;
-    assign csr_addr_mem    = exe_mem_bus_o.csr_addr;
     assign current_pc_mem_ = exe_mem_bus_o.current_pc;
     
     // control signals
@@ -877,14 +849,22 @@ module data_path #(
     assign jump_mem            = exe_mem_bus_o.jump;
     assign lui_mem             = exe_mem_bus_o.lui; 
     assign zero_mem            = exe_mem_bus_o.zero;
+    assign is_atomic_mem       = exe_mem_bus_o.is_atomic;
+    assign is_mul_mem          = exe_mem_bus_o.is_mul;
+
+`ifdef CSR_FILE
+    assign csr_addr_mem        = exe_mem_bus_o.csr_addr;
     assign csr_inst_mem        = exe_mem_bus_o.csr_inst;
     assign csr_en_mem          = exe_mem_bus_o.csr_en;
     assign trap_ret_mem        = exe_mem_bus_o.trap_ret;
-    assign is_atomic_mem       = exe_mem_bus_o.is_atomic;
-    assign is_mul_mem          = exe_mem_bus_o.is_mul;
     assign ecall_mem           = exe_mem_bus_o.ecall;
     assign illegal_inst_mem    = exe_mem_bus_o.illegal_inst;
     assign ebreak_inst_mem     = exe_mem_bus_o.ebreak_inst;
+`else 
+    assign ebreak_inst_mem     = 'b0;
+    assign csr_inst_mem        = 'b0;
+`endif
+
     assign is_montgomery_mem   = exe_mem_bus_o.is_montgomery;
 
     assign inst_mem            = exe_mem_bus_o.inst;
@@ -929,54 +909,44 @@ module data_path #(
         .out_(mem_wdata_frw_mem_tmp)
     ); 
     
-       
-    logic [31:0] mem_addr;
-    assign mem_addr = is_atomic_mem ? reg_rdata1_mem : alu_result_mem;
     
 
     // ============================================
     //              ATOMIC ACCESS LOGIC
     // ============================================
 
-    assign fun5_mem = csr_addr_mem[11:7]; // csr addr is fun12
+    logic [31:0] mem_addr;
+    assign mem_addr = alu_result_mem;
 
-
-    lsu lsu_inst (
-        .clk(clk),
-        .rst(~reset_n),
-        .is_atomic_mem(is_atomic_mem),
-        .core_halted(core_halted),
-        .amo_funct5_mem(fun5_mem),
-        .rs2_val_mem(mem_wdata_frw_mem),
-        .mem_read_req(mem_to_reg_req_mem),
-        .mem_write_req(mem_write_req_mem),
-        .mem_addr_req(mem_addr), 
-        .mem_wdata_req(mem_wdata_frw_mem),
-        .mem_op_mem(fun3_mem),
-        
-        .mem_read(mem_to_reg_mem),
+    store_aligner store_alignment_unit(
+        .wdata(mem_wdata_frw_mem),
+        .store_type(store_t'(fun3_mem)),
+        .addr(mem_addr[1:0]),
         .mem_write(mem_write_mem),
-        .mem_addr(mem_addr_mem),
-        .mem_wdata(mem_wdata_mem),
-        .mem_wstrb(mem_wstrb_mem),
-        .mem_rdata(mem_rdata_mem),
-        .mem_ack(mem_ack_mem),
-        .mem_err(mem_err_mem),
-        .mem_rdata_aligned(mem_rdata_aligned),
-
-        .stall_mem(atomic_unit_stall),
-        .result_rd(atomic_unit_wdata_mem),
-        .load_addr_malign(load_addr_malign_mem),
-        .load_access_fault(load_access_fault_mem),
-        .store_amo_addr_malign(store_amo_addr_malign_mem),
-        .store_amo_access_fault(store_amo_access_fault_mem)
+        .wsel(mem_wstrb_mem),
+        .aligned_data(mem_wdata_mem)
     );
 
+    load_aligner load_alignment_unit (
+        .addr(mem_addr[1:0]),
+        .fun3(fun3_mem),
+        .rdata(mem_rdata_mem),
+        .aligned_data(mem_rdata_aligned)
+    );
+
+    assign mem_to_reg_mem    = mem_to_reg_req_mem;
+    assign mem_write_mem     = mem_write_req_mem;
+    assign mem_addr_mem      = mem_addr;
+
+
+    assign atomic_unit_stall = 1'b0;
 
 
     // ============================================
     //               Exception Encoder
     // ============================================
+
+`ifdef CSR_FILE
     logic [5:0]  e_code_mem;
     logic [31:0] mtval;
     logic        exception_mem;
@@ -1018,7 +988,6 @@ module data_path #(
 
     logic [1:0]  csr_cmd_mem;
     logic [31:0] csr_wdata_mem;
-    logic [31:0] csr_rdata_mem;
     // logic [31:0] cinst_pc;
     assign csr_cmd_mem   = fun3_mem[1:0];
     assign csr_wdata_mem = fun3_mem[2] ? imm_mem : reg_rdata1_mem; 
@@ -1036,7 +1005,6 @@ module data_path #(
     logic dbg_csr_write;
     assign dbg_csr_write = dbg_ar_en & dbg_ar_wr & 
                            (dbg_ar_ad< 32'h1000);
-
     csr_file csr_file_inst (
         .clk             (clk           ),
         .reset_n         (reset_n       ),
@@ -1061,7 +1029,19 @@ module data_path #(
         .mtval_i         (mtval)
     );
 
-    assign dbg_csr_result = trap ? csr_rdata_mem : 'b0;
+    assign dbg_csr_result = csr_rdata_mem;
+`else 
+    assign trap = 1'b0;
+    assign trap_return_pc = 32'b0;
+    assign tvec = 32'b0;
+    assign trap_cause = 32'b0;
+    assign dbg_csr_result = 32'b0;
+    assign cinst_pc = 32'b0;
+    assign trap_ret = 1'b0;
+`endif
+
+
+
 
     // selecting result in the memory stage
     // it can be used in the exe, incase it's needed 
@@ -1069,20 +1049,18 @@ module data_path #(
     logic alu_to_reg_mem;
     logic [31:0] mem_result_mux_1_o;
     assign alu_to_reg_mem = ~( jump_mem | lui_mem | csr_inst_mem);
-    one_hot_mux4x1 #(
+    one_hot_mux3x1 #(
         .n(32)
     ) mem_stage_result_sel_mux (
-        .sel({csr_inst_mem,lui_mem, jump_mem, alu_to_reg_mem}),
+        .sel({lui_mem, jump_mem, alu_to_reg_mem}),
         .in0(alu_result_mem),
         .in1(pc_plus_4_mem),
         .in2(imm_mem),
-        .in3(csr_rdata_mem),
         .out_(mem_result_mux_1_o)
     );
 
     // div result is included in the mem result but mul is not becuase of critical path caused by mul
-    assign result_mem = div_ready                ? div_result : 
-                        is_atomic_mem            ? atomic_unit_wdata_mem : mem_result_mux_1_o; 
+    assign result_mem = div_ready                ? div_result : mem_result_mux_1_o; 
     assign rd_mem     = div_ready ? div_rd    : exe_mem_bus_o.rd;  
     assign reg_write_mem  = reg_write_mem_ | is_mul_mem | div_ready;
     assign current_pc_mem = (div_ready | div_busy) ? div_pc : current_pc_mem_; 
@@ -1102,8 +1080,10 @@ module data_path #(
     result_mem,
     mem_rdata_aligned,
     mul_result_mem,
+`ifdef PQC
     pqc_result_mem,
     is_montgomery_mem,
+`endif
     // control signals
     reg_write_mem,
     mem_to_reg_req_mem,
@@ -1128,7 +1108,7 @@ module data_path #(
     `ifdef tracer
         .n($bits(mem_wb_reg_t)) // Automatically sets width
     `else 
-        .n(138)
+        .n(105)
     `endif
     ) mem_wb_reg (
         .clk(clk),
@@ -1145,9 +1125,10 @@ module data_path #(
     assign non_mul_result_wb        = mem_wb_bus_o.result;
     assign mem_rdata_wb             = mem_wb_bus_o.mem_rdata;
     assign mul_result_wb            = mem_wb_bus_o.mul_result;
+`ifdef PQC
     assign pqc_result_wb        = mem_wb_bus_o.pqc_result;
     assign is_montgomery_wb     = mem_wb_bus_o.is_montgomery;
-    
+`endif
     // control signals
     assign reg_write_wb_            = mem_wb_bus_o.reg_write;
     assign mem_to_reg_wb            = mem_wb_bus_o.mem_to_reg;
@@ -1173,7 +1154,9 @@ module data_path #(
 
 
     assign reg_wdata_wb = is_mul_wb ? mul_result_wb:
+`ifdef PQC
                           is_montgomery_wb ? pqc_result_wb: 
+`endif
                           mem_to_reg_wb    ? mem_rdata_wb : non_mul_result_wb; 
     assign rd_wb        = rd_wb_;
     assign reg_write_wb = reg_write_wb_;
@@ -1194,8 +1177,6 @@ module data_path #(
         assign rvfi_valid     = inst_valid_wb;
     `endif
 
-
-    // instantiate the tracer ip 
     `ifdef tracer 
         tracer tracer_inst (
         .clk_i           (clk),

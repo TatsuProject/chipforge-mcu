@@ -110,88 +110,186 @@ module div_unit #(parameter XLEN = 32)(
   assign result_o  = div_dbz ? (is_rem ? rs1_q : 32'hFFFFFFFF) :
                      (is_rem ? remainder : quotient);
 
-  assign ready_o   = div_done;
-  assign busy_o    = div_busy | div_start;
+//   assign ready_o   = div_done;
 
+  assign busy_o    = div_busy | div_start;
+  logic div_busy_ff;
+
+  always_ff @(posedge clk or negedge reset_n) begin
+    if (!reset_n) div_busy_ff <= 1'b0;
+    else div_busy_ff <= busy_o;
+  end
+
+  assign ready_o = div_busy_ff & ~div_busy;
 endmodule
 
-module divu_int #(parameter WIDTH=5) ( // width of numbers in bits
-    input wire logic clk,              // clock
-    input wire logic rst,              // reset
-    input wire logic clear,
-    input wire logic start,            // start calculation
-    output     logic busy,             // calculation in progress
-    output     logic done,             // calculation is complete (high for one tick)
-    output     logic dbz,              // divide by zero
-    input wire logic [WIDTH-1:0] a,    // dividend (numerator)
-    input wire logic [WIDTH-1:0] b,    // divisor (denominator)
-    output     logic [WIDTH-1:0] val,  // result value: quotient
-    output     logic [WIDTH-1:0] rem_   // result: remainder
-    );
+module divu_int #(parameter WIDTH = 32) ( // width of numbers in bits
+    input  wire logic             clk,      // clock
+    input  wire logic             rst,      // async reset (active high)
+    input  wire logic             clear,    // synchronous clear
+    input  wire logic             start,    // start calculation (pulse)
+    output      logic             busy,     // calculation in progress
+    output      logic             done,     // calculation is complete (high for one tick)
+    output      logic             dbz,      // divide by zero
+    input  wire logic [WIDTH-1:0] a,        // dividend (numerator)
+    input  wire logic [WIDTH-1:0] b,        // divisor (denominator)
+    output      logic [WIDTH-1:0] val,      // quotient
+    output      logic [WIDTH-1:0] rem_      // remainder
+);
 
-    logic [WIDTH-1:0] b1;             // copy of divisor
-    logic [WIDTH-1:0] quo, quo_next;  // intermediate quotient
-    logic [WIDTH:0] acc, acc_next;    // accumulator (1 bit wider)
-    logic [$clog2(WIDTH)-1:0] i;      // iteration counter
+    // ----------------------------------------------------------------
+    // Parameters
+    // ----------------------------------------------------------------
+    localparam int STEPS     = WIDTH / 2;          // radix-4 → 2 bits/step
+    localparam int STEP_BITS = $clog2(STEPS);
 
-    // division algorithm iteration
+    // ----------------------------------------------------------------
+    // State registers
+    // ----------------------------------------------------------------
+    logic                  busy_q,   busy_d;
+    logic                  done_q,   done_d;
+    logic                  dbz_q,    dbz_d;
+
+    logic [WIDTH-1:0]      dividend_q, dividend_d; // shifting dividend
+    logic [WIDTH-1:0]      divisor_q,  divisor_d;  // latched divisor
+    logic [WIDTH-1:0]      quotient_q, quotient_d; // building quotient
+    logic [WIDTH+1:0]      rem_q,      rem_d;      // remainder (WIDTH+2 bits)
+    logic [STEP_BITS-1:0]  iter_q,     iter_d;     // step counter
+
+    // Outputs from regs
+    assign busy = busy_q;
+    assign done = done_q;
+    assign dbz  = dbz_q;
+    assign val  = quotient_q;
+    assign rem_ = rem_q[WIDTH-1:0];
+
+    // ----------------------------------------------------------------
+    // Combinational next-state (one radix-4 step when busy_q=1)
+    // ----------------------------------------------------------------
     always_comb begin
-        if (acc >= {1'b0, b1}) begin
-            acc_next = acc - b1;
-            {acc_next, quo_next} = {acc_next[WIDTH-1:0], quo, 1'b1};
+        // Default: hold state
+        busy_d     = busy_q;
+        done_d     = 1'b0;         // "done" is a pulse
+        dbz_d      = dbz_q;
+        dividend_d = dividend_q;
+        divisor_d  = divisor_q;
+        quotient_d = quotient_q;
+        rem_d      = rem_q;
+        iter_d     = iter_q;
+
+        // -------- Highest priority: clear (flush) --------
+        if (clear) begin
+            busy_d     = 1'b0;
+            done_d     = 1'b0;
+            dbz_d      = 1'b0;
+            dividend_d = '0;
+            divisor_d  = '0;
+            quotient_d = '0;
+            rem_d      = '0;
+            iter_d     = '0;
+
+        // -------- Start new division (only when idle) --------
+        end else if (start && !busy_q) begin
+            done_d <= 1'b0;
+
+            if (b == '0) begin
+                // divide-by-zero
+                busy_d     = 1'b0;
+                dbz_d      = 1'b1;
+                quotient_d = '0;
+                rem_d      = {2'b00, a};  // remainder = dividend (wrapper just looks at dbz)
+            end else if (a == '0) begin
+                // 0 / b = 0
+                busy_d     = 1'b0;
+                dbz_d      = 1'b0;
+                quotient_d = '0;
+                rem_d      = '0;
+            end else begin
+                // normal start
+                busy_d     = 1'b1;
+                dbz_d      = 1'b0;
+                dividend_d = a;
+                divisor_d  = b;
+                quotient_d = '0;
+                rem_d      = '0;
+                iter_d     = '0;
+            end
+
+        // -------- Radix-4 restoring step while busy --------
+        end else if (busy_q) begin
+            // Local step signals (no extra flops)
+            logic [WIDTH+1:0] rem_shift;
+            logic [WIDTH+1:0] d1, d2, d3;
+            logic [WIDTH+1:0] rem_next;
+            logic [WIDTH-1:0] quotient_next;
+            logic [WIDTH-1:0] dividend_next;
+            logic [1:0]       q_digit;
+
+            // Shift remainder by 2 and bring in next 2 MSBs of dividend
+            rem_shift = {rem_q[WIDTH-1:0], dividend_q[WIDTH-1:WIDTH-2]};
+
+            d1 = {2'b00, divisor_q};    // 1*b
+            d2 = d1 << 1;               // 2*b
+            d3 = d2 + d1;               // 3*b
+
+            if (rem_shift >= d3) begin
+                q_digit  = 2'b11;
+                rem_next = rem_shift - d3;
+            end else if (rem_shift >= d2) begin
+                q_digit  = 2'b10;
+                rem_next = rem_shift - d2;
+            end else if (rem_shift >= d1) begin
+                q_digit  = 2'b01;
+                rem_next = rem_shift - d1;
+            end else begin
+                q_digit  = 2'b00;
+                rem_next = rem_shift;
+            end
+
+            quotient_next = (quotient_q << 2) | q_digit;
+            dividend_next = (dividend_q << 2);
+
+            // Last step?
+            if (iter_q == STEPS-1) begin
+                busy_d     = 1'b0;
+                done_d     = 1'b1;
+                quotient_d = quotient_next;
+                rem_d      = rem_next;
+                // iter_d can stay; unused when !busy
+            end else begin
+                iter_d     = iter_q + 1'b1;
+                quotient_d = quotient_next;
+                rem_d      = rem_next;
+                dividend_d = dividend_next;
+                done_d     = 1'b0;
+            end
+        end
+        // else: idle, keep state; done_d already 0
+    end
+
+    // ----------------------------------------------------------------
+    // Sequential state update
+    // ----------------------------------------------------------------
+    always_ff @(posedge clk or posedge rst) begin
+        if (rst) begin
+            busy_q     <= 1'b0;
+            done_q     <= 1'b0;
+            dbz_q      <= 1'b0;
+            dividend_q <= '0;
+            divisor_q  <= '0;
+            quotient_q <= '0;
+            rem_q      <= '0;
+            iter_q     <= '0;
         end else begin
-            {acc_next, quo_next} = {acc[WIDTH-1:0], quo} << 1;
+            busy_q     <= busy_d;
+            done_q     <= done_d;
+            dbz_q      <= dbz_d;
+            dividend_q <= dividend_d;
+            divisor_q  <= divisor_d;
+            quotient_q <= quotient_d;
+            rem_q      <= rem_d;
+            iter_q     <= iter_d;
         end
     end
 
-    // calculation control
-    always_ff @(posedge clk, posedge rst) begin    
-        if (rst) begin
-            busy <= 0;
-            done <= 0;
-            dbz <= 0;
-            val <= 0;
-            rem_ <= 0;
-            i   <= 0;
-            acc <= 0;
-            quo <= 0;
-            b1  <= 0;
-        end else if(clear) begin 
-            busy <= 0;
-            done <= 0;
-            dbz <= 0;
-            val <= 0;
-            rem_ <= 0;
-            i   <= 0;
-            acc <= 0;
-            quo <= 0;
-            b1  <= 0;
-        end else if (start) begin
-            i <= 0;
-            if (b == 0) begin  // catch divide by zero
-                busy <= 0;
-                done <= 1;
-                dbz <= 1;
-            end else begin
-                done <= 0;
-                busy <= 1;
-                dbz <= 0;
-                b1 <= b;
-                {acc, quo} <= {{WIDTH{1'b0}}, a, 1'b0};  // initialize calculation
-            end
-        end else if (busy) begin
-            if (i == WIDTH-1) begin  // we're done
-                busy <= 0;
-                done <= 1;
-                val <= quo_next;
-                rem_ <= acc_next[WIDTH:1];  // undo final shift
-            end else begin  // next iteration
-                i <= i + 1;
-                acc <= acc_next;
-                quo <= quo_next;
-            end
-        end else begin 
-                done <= 0;
-        end
-    end
 endmodule

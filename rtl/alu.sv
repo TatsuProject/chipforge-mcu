@@ -16,43 +16,82 @@ module alu (
     logic [31:0] rev8_o, brev8_o;
     logic [31:0] xperm4_o, xperm8_o;
     logic [31:0] zip_o, unzip_o;
-    
-    logic [32:0] add_o, sub_o;
 
-    assign add_o = op1 + op2;
-    assign sub_o = op1 - op2;
+    // Optimized shared adder/subtractor with carry-in
+    // For addition: op1 + op2 + 0
+    // For subtraction: op1 + ~op2 + 1 (two's complement)
+    logic        is_sub;
+    logic [31:0] op2_conditional;
+    logic [32:0] addsub_result;
 
-    always_comb begin 
+    assign is_sub = (alu_ctrl == SUB || alu_ctrl == SLT || alu_ctrl == SLTU);
+
+    // XOR each bit of op2 with is_sub for efficient conditional inversion
+    assign op2_conditional = op2 ^ {32{is_sub}};
+
+    // Single adder with 1-bit carry-in: result = op1 + op2_conditional + is_sub
+    // Synthesizes to one 32-bit adder with carry-in, not three separate adders
+    assign addsub_result = op1 + op2_conditional + is_sub;
+
+    // Optimized barrel shifter with shared logic
+    logic [31:0] shift_left, shift_right, shift_arith;
+    logic [31:0] rotate_result;
+
+    assign shift_left  = op1 << op2[4:0];
+    assign shift_right = op1 >> op2[4:0];
+    assign shift_arith = $signed(op1) >>> op2[4:0];
+
+    // Unified rotate logic - more efficient than separate ROL/ROR
+    assign rotate_result = (alu_ctrl == ROL_) ?
+                          (shift_left | (op1 >> (5'd0 - op2[4:0]))) :
+                          (shift_right | (op1 << (5'd0 - op2[4:0])));
+
+    // Optimized comparison using addsub result
+    logic cmp_signed, cmp_unsigned;
+    assign cmp_signed   = (op1[31] != op2[31]) ? op1[31] : addsub_result[31];
+    assign cmp_unsigned = ~addsub_result[32];
+
+    always_comb begin
         case(alu_ctrl)
-			ADD: alu_result    = add_o[31:0];
-            ROL_: alu_result   = (op1 << op2[4:0]) | (op1 >> (32 - op2[4:0]));
-            ROR_: alu_result   = (op1 >> op2[4:0]) | (op1 << (32 - op2[4:0]));
-            SUB: alu_result    = sub_o[31:0];
-      		SLT: alu_result    = $signed(op1) < $signed(op2) ? 1'b1 : 1'b0;
-	        SLL_: alu_result   = op1 << op2[4:0];
-            ANDN: alu_result   = op1 & ~op2;
-            ORN: alu_result    = op1 | ~op2;
-            XNORN: alu_result  = ~op1 ^ op2;
-            PACK: alu_result   = {op2[15:0], op1[15:0]};
-            PACKH: alu_result  = {16'b0, op2[7:0], op1[7:0]};
-            SRL_: alu_result   = op1 >> op2[4:0];
-            SRA_: alu_result   = $signed(op1) >>> op2[4:0];
-            XOR: alu_result    = op1 ^ op2;
-            AND_: alu_result   = op1 & op2;
-            OR: alu_result     = op1 | op2;
-            SLTU: alu_result   = {31'h0, {op1 < op2}};
-            CLMUL: alu_result  = clmul_o[31:0];
+            // Arithmetic operations use shared adder/subtractor
+            ADD:  alu_result = addsub_result[31:0];
+            SUB:  alu_result = addsub_result[31:0];
+
+            // Optimized comparisons using subtraction result
+            SLT:  alu_result = {31'h0, cmp_signed};
+            SLTU: alu_result = {31'h0, cmp_unsigned};
+
+            // Optimized shift operations
+            SLL_: alu_result = shift_left;
+            SRL_: alu_result = shift_right;
+            SRA_: alu_result = shift_arith;
+
+            // Unified rotate operations
+            ROL_: alu_result = rotate_result;
+            ROR_: alu_result = rotate_result;
+
+            // Bitwise operations
+            AND_:  alu_result = op1 & op2;
+            OR:    alu_result = op1 | op2;
+            XOR:   alu_result = op1 ^ op2;
+            ANDN:  alu_result = op1 & ~op2;
+            ORN:   alu_result = op1 | ~op2;
+            XNORN: alu_result = ~(op1 ^ op2);
+
+            // Pack operations
+            PACK:  alu_result = {op2[15:0], op1[15:0]};
+            PACKH: alu_result = {16'b0, op2[7:0], op1[7:0]};
+
+            // Crypto/bitmanip operations (instantiated modules)
+            CLMUL:  alu_result = clmul_o[31:0];
             CLMULH: alu_result = clmul_o[63:32];
             XPERM4: alu_result = xperm4_o;
             XPERM8: alu_result = xperm8_o;
-            ZIP   : alu_result = zip_o;
-            UNZIP : alu_result = unzip_o;
-            REV   : alu_result = rev8_o;
-            BREV  : alu_result = brev8_o;
+            ZIP:    alu_result = zip_o;
+            UNZIP:  alu_result = unzip_o;
+            REV:    alu_result = rev8_o;
+            BREV:   alu_result = brev8_o;
 
-
-            
-            
             default: alu_result = 32'd0;
         endcase
     end

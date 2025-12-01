@@ -47,10 +47,10 @@ module rv32imc_top(
     .timer_irq(1'b0),
     .external_irq(1'b0),
 
+  `ifdef JTAG_DEBUG
     .core_resumeack(),
     .core_running(),
     .core_halted(),
-
     .dbg_haltreq(1'b0),
     .dbg_resumereq(1'b0),
     .dbg_ar_en(1'b0),
@@ -59,6 +59,7 @@ module rv32imc_top(
     .dbg_ar_do(32'h0),
     .dbg_ar_di(),
     .dbg_ar_done(),
+  `endif
     .inst_fetch_stall(1'b0)
 );
 

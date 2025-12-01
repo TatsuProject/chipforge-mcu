@@ -381,8 +381,10 @@ package riscv_types;
         logic [31:0] result;
         logic [31:0] mem_rdata;
         logic [31:0] mul_result;
+`ifdef PQC
         logic [31:0] pqc_result;
         logic        is_montgomery;
+`endif        
         // Control signals
         logic        reg_write;
         logic        mem_to_reg;

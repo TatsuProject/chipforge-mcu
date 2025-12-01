@@ -129,7 +129,6 @@
         logic [31:0] imm;
         logic [31:0] crypto_alu_result;
         logic [31:0] reg_rdata1;
-        logic [11:0] csr_addr;
         logic [31:0] current_pc;
         // Control signals
         logic        reg_write;
@@ -139,15 +138,18 @@
         logic        jump;
         logic        lui;
         logic        zero;
+        logic        is_mul;
+        logic        is_atomic;
+        logic        inst_valid;
+`ifdef CSR_FILE
+        logic [11:0] csr_addr;
         logic        csr_inst;
         logic        csr_en;
         logic        trap_ret;
-        logic        is_atomic;
-        logic        is_mul;
         logic        ecall;
         logic        illegal_inst;
-        logic        inst_valid;
         logic        ebreak_inst;
+`endif
         logic        is_montgomery;
         logic [31:0] inst;
         `ifdef tracer 
@@ -161,8 +163,10 @@
         logic [31:0] result;
         logic [31:0] mem_rdata;
         logic [31:0] mul_result;
+`ifdef PQC
         logic [31:0] pqc_result;
         logic        is_montgomery;
+`endif
         // Control signals
         logic        reg_write;
         logic        mem_to_reg;

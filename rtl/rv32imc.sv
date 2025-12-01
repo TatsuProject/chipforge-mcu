@@ -146,7 +146,7 @@ module rv32i #(
     logic        mul_hazard;
 
     logic        stall_pipl;
-
+    logic [31:0] dcsr, dpc;
 
 `ifdef tracer
      logic [31:0] rvfi_insn;
@@ -162,25 +162,7 @@ module rv32i #(
      logic [31:0] rvfi_mem_wdata;
      logic [31:0] rvfi_mem_rdata;
      logic        rvfi_valid;
-
-    logic tracer_aggregate;
-
-     assign tracer_aggregate = ^{rvfi_insn,
-     rvfi_rs1_addr,
-     rvfi_rs2_addr,
-     rvfi_rs1_rdata,
-     rvfi_rs2_rdata,
-     rvfi_rd_addr,
-     rvfi_rd_wdata,
-     rvfi_pc_rdata,
-     rvfi_pc_wdata,
-     rvfi_mem_addr,
-     rvfi_mem_wdata,
-     rvfi_mem_rdata,
-     rvfi_valid};
-
 `endif
-
 
     data_path #(
         .DMEM_DEPTH(DMEM_DEPTH),
@@ -196,10 +178,8 @@ module rv32i #(
     assign mem_read_mem = mem_to_reg_mem;
 
 
-    // TODO
-    // FIXME
-    
-    logic [31:0] dcsr, dpc;
+
+`ifdef JTAG_DEBUG
     core_dbg_fsm u_core_dbg_fsm (
         .clk_i             (clk),
         .reset_i           (~reset_n),
@@ -236,13 +216,21 @@ module rv32i #(
             endcase
         else if(dbg_ar_ad >= 32'h1000 && dbg_ar_ad <= 32'h101f)
              dbg_ar_di = dbg_gpr_rdata;
-    `ifdef tracer
-        else dbg_ar_di = {31'd0,tracer_aggregate};
-    `else
         else dbg_ar_di = 'd0;
-    `endif
     end
     assign dbg_ar_done = dbg_ar_en;
+`else 
+    assign core_resumeack = 1'b0;
+    assign core_running = 1'b1;
+    assign core_halted = 1'b0;
+    assign dbg_ar_di = 32'd0;
+    assign dbg_ar_done = 1'b0;
+    assign dont_trap = 1'b0;
+    assign dpc = 32'd0;
+    assign dcsr = 32'd0;
+    assign dbg_ret = 1'b0;
+    
+`endif
 
 
     always_comb begin 

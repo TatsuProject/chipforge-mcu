@@ -17,7 +17,7 @@ rtl/iadu.sv
 rtl/mem_controller.sv
 rtl/lsu.sv
 rtl/exception_encoder.sv
-rtl/crypto/crypto_bitmanip_lib.sv
+rtl/crypto/crypto_bitmanip_lib_optimized.sv
 rtl/crypto/aes_unit.sv
 rtl/crypto/crypto_unit.sv
 rtl/pqc/adder_16x16.v
