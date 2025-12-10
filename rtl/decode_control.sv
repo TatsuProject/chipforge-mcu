@@ -13,8 +13,7 @@ module decode_control (
     output logic       r_type,
     output logic       sys_inst,
     output logic       is_atomic,
-    output logic       illegal_inst,
-    output logic       is_montgomery
+    output logic       illegal_inst
 );
 
 always_comb begin
@@ -33,7 +32,6 @@ always_comb begin
     sys_inst      = 1'b0;
     is_atomic     = 1'b0;
     illegal_inst  = 1'b0;
-    is_montgomery = 1'b0;
     
     case (opcode)
       7'b0110011: begin // R-type
@@ -100,10 +98,6 @@ always_comb begin
       // 7'b0101111: begin // atomic instructions
       //   is_atomic = 1'b1;
       //   reg_write = 1'b1;
-      // end
-      // 7'b0001011: begin // PQC (MONTGOMERY)
-      //   is_montgomery = 1'b1;
-      //   reg_write     = 1'b1;
       // end
 
       7'b0000000: begin // flushed instruction 

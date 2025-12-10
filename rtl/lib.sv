@@ -331,17 +331,16 @@ package riscv_types;
         logic        illegal_inst;
         logic        inst_valid;
         logic        ebreak_inst;
-        logic        is_montgomery;
         logic [31:0] inst;
     } id_exe_reg_t;
 
     // EX/MEM Register Structure
     typedef struct packed {
-        // Data signals 
+        // Data signals
         logic [31:0] pc_plus_4;
-        logic [31:0] pc_jump;      
+        logic [31:0] pc_jump;
         logic [4:0]  rs2;
-        logic [4:0]  rd; 
+        logic [4:0]  rd;
         logic [2:0]  fun3;
         logic [31:0] rdata2_frw;
         logic [31:0] imm;
@@ -367,9 +366,8 @@ package riscv_types;
         logic        illegal_inst;
         logic        inst_valid;
         logic        ebreak_inst;
-        logic        is_montgomery;
         logic [31:0] inst;
-        `ifdef tracer 
+        `ifdef tracer
             logic [4:0]  rs1;
         `endif
     } exe_mem_reg_t;
@@ -381,10 +379,6 @@ package riscv_types;
         logic [31:0] result;
         logic [31:0] mem_rdata;
         logic [31:0] mul_result;
-`ifdef PQC
-        logic [31:0] pqc_result;
-        logic        is_montgomery;
-`endif        
         // Control signals
         logic        reg_write;
         logic        mem_to_reg;

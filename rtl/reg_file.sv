@@ -25,9 +25,8 @@ module reg_file #(
         end
     end
 
-    assign rdata1 = (raddr1 == 5'd0) ? 32'd0 : reg_file[raddr1];
-    assign rdata2 = (raddr2 == 5'd0) ? 32'd0 : reg_file[raddr2];
-
+    assign rdata1 = reg_file[raddr1];
+    assign rdata2 = reg_file[raddr2];
 
 `ifdef verilator
     logic [31:0] x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17;

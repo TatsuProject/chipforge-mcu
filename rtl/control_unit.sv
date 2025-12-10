@@ -23,7 +23,6 @@ module control_unit(
     output logic sys_inst_id,
     output logic is_atomic_id,
     output logic illegal_inst_id,
-    output logic is_montgomery_id,
 
 
     // alu_controller output
@@ -72,7 +71,6 @@ module control_unit(
     input  logic atomic_unit_stall,
     input  logic is_atomic_mem,
     input  logic is_mul_exe,
-    input  logic is_montgomery_exe,
     input  logic div_busy,
     input  logic core_halted,
     input  logic core_running,
@@ -99,15 +97,14 @@ module control_unit(
         .r_type(r_type_id),
         .sys_inst(sys_inst_id),
         .is_atomic(is_atomic_id),
-        .illegal_inst(illegal_inst_id),
-        .is_montgomery(is_montgomery_id)
+        .illegal_inst(illegal_inst_id)
     );
 
     wire exe_use_rs1_id;
     wire exe_use_rs2_id;
 
     assign exe_use_rs1_id = ~(auipc_id | lui_id);
-    assign exe_use_rs2_id = r_type_id | branch_id | is_atomic_id | is_montgomery_id;
+    assign exe_use_rs2_id = r_type_id | branch_id | is_atomic_id;
 
     alu_control alu_controller_inst (
         .fun3(fun3_exe),

@@ -12,7 +12,6 @@ module hazard_controller (
     input wire is_atomic_mem,
     input wire atomic_unit_stall,
     input wire is_mul_exe,
-    input wire is_montgomery_exe,
 
     output wire load_hazard,
     output wire branch_hazard,
@@ -27,7 +26,7 @@ module hazard_controller (
     assign atomic_unit_hazard   =   (is_atomic_mem  &  ~atomic_unit_stall & (rd_mem !=0)) 
                                 &   ((rd_mem == rs2_exe) | (rd_mem == rs1_exe));
     
-    assign mul_hazard           =   (( is_mul_exe | is_montgomery_exe) & (rd_exe !=0))  
+    assign mul_hazard           =   (( is_mul_exe) & (rd_exe !=0))  
                                 &   (((rd_exe == rs1_id) & exe_use_rs1_id) | ((rd_exe == rs2_id) & exe_use_rs2_id));
                    
 

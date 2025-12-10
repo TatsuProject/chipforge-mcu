@@ -1,11 +1,11 @@
 module imm_gen (
     input logic [31:7] inst,
-    input logic j_type,
-    input logic b_type,
-    input logic s_type,
-    input logic lui,
+    input logic j_type, 
+    input logic b_type, 
+    input logic s_type, 
+    input logic lui, 
     input logic auipc,
-    input logic csr_inst,
+    input logic csr_inst, 
 
     output logic [31:0] imm
 );
@@ -42,11 +42,11 @@ module imm_gen (
     // imm_temp[10:5]
     assign imm_temp[10:5] = inst[30:25] & ~({6{u_type}});
 
-
+   
     // imm_temp[31] the MSB
     assign imm_temp[31] = inst[31];
-
-
+    
+    
     // imm_temp[12:19]
     mux2x1 #(
         .n(8)

@@ -1,4 +1,3 @@
-
 rtl/lib.sv
 rtl/alignment_units.sv
 rtl/alu_control.sv
@@ -20,11 +19,6 @@ rtl/exception_encoder.sv
 rtl/crypto/crypto_bitmanip_lib_optimized.sv
 rtl/crypto/aes_unit.sv
 rtl/crypto/crypto_unit.sv
-rtl/pqc/adder_16x16.v
-rtl/pqc/sub_32x32.v
-rtl/pqc/multiplier_16x16.v
-rtl/pqc/montgomery.sv
-rtl/pqc/pqc_top.sv
 rtl/alu.sv
 rtl/data_path.sv
 rtl/control_unit.sv
