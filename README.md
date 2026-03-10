@@ -12,18 +12,29 @@ low-power edge AI applications.
 
 ## Quick Start
 
+**1. Install Verilator** (if not already installed):
 ```bash
-# Install Verilator (Ubuntu/Debian)
-sudo apt-get install -y verilator make g++ python3 python3-pip
-pip3 install pandas
+sudo apt-get install -y git make g++ python3 python3-pip autoconf flex bison help2man
+git clone https://github.com/verilator/verilator.git
+cd verilator && git checkout v5.038
+autoconf && ./configure && make -j$(nproc) && sudo make install
+cd ..
+```
 
-# Run the full verification suite
+**2. Install Python dependency:**
+```bash
+pip3 install pandas
+```
+
+**3. Run the full verification suite:**
+```bash
 cd verif
 python3 run_all.py
 ```
 
-That's it. The flow compiles the design, runs 700 tests, and reports a pass/fail
-summary with functionality score and IPC.
+This compiles the design, runs 700 tests (7 suites x 100 iterations), and
+reports a pass/fail summary with functionality score and IPC. The build is
+incremental — only recompiles when RTL sources change.
 
 ---
 
@@ -31,29 +42,31 @@ summary with functionality score and IPC.
 
 | Tool | Version | Install |
 |------|---------|---------|
-| **Verilator** | 5.0+ | See [Installing Verilator](#installing-verilator) below |
+| **Verilator** | 5.006+ | See [Installing Verilator](#installing-verilator) below |
 | **Python 3** | 3.10+ | Comes pre-installed on most systems |
 | **GNU Make** | 4.0+ | `sudo apt-get install make` |
 | **g++** | 11+ | `sudo apt-get install g++` |
 | **pandas** | any | `pip3 install pandas` |
 
-> Verilator 5.0+ is required for the `--timing` flag. Check your version with
-> `verilator --version`.
+> Verilator 5.006+ is required for `--binary` and `--timing` flags. Check your
+> version with `verilator --version`.
 
 ### Installing Verilator
 
-**Ubuntu/Debian** (apt):
+**From source** (recommended — installs v5.038):
 ```bash
-sudo apt-get install verilator
-```
-
-**From source** (recommended for latest version):
-```bash
+sudo apt-get install -y git autoconf g++ flex bison help2man
 git clone https://github.com/verilator/verilator.git
-cd verilator && git checkout stable
+cd verilator
+git checkout v5.038
 autoconf && ./configure && make -j$(nproc)
 sudo make install
-verilator --version   # should show 5.x+
+verilator --version   # should show 5.038
+```
+
+**Ubuntu/Debian** (apt — may be older version):
+```bash
+sudo apt-get install verilator
 ```
 
 **macOS** (Homebrew):

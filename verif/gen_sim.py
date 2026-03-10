@@ -4,6 +4,9 @@ gen_sim.py - Compile the Verilator simulation binary.
 
 Passes REPO_ROOT to the Makefile, which uses:
   -I$(REPO_ROOT) -f $(REPO_ROOT)/rtl.f -f tb_files.f
+
+Only recompiles if RTL or testbench sources have changed (incremental build).
+Use --clean to force a full rebuild.
 """
 
 import argparse
@@ -22,13 +25,13 @@ def find_repo_root(start: Path) -> Path | None:
     return None
 
 
-def build_sim(verif_dir: Path, repo_root: Path) -> Path:
+def build_sim(verif_dir: Path, repo_root: Path, clean: bool = False) -> Path:
     """Run 'make build_verilator_sim REPO_ROOT=...' in verif_dir."""
     sim_bin = verif_dir / "obj_dir" / "Vtb_top"
 
-    # Clean first to ensure a fresh build
-    print("[gen_sim] Cleaning previous build...")
-    subprocess.run(["make", "clean"], cwd=verif_dir, capture_output=True)
+    if clean:
+        print("[gen_sim] Cleaning previous build...")
+        subprocess.run(["make", "clean"], cwd=verif_dir, capture_output=True)
 
     print("[gen_sim] Building Verilator simulation...")
     result = subprocess.run(
@@ -52,6 +55,8 @@ def main():
     parser = argparse.ArgumentParser(description="Compile Verilator simulation")
     parser.add_argument("--repo-root", type=str, default=None,
                         help="Path to MCU repo root (default: auto-detect)")
+    parser.add_argument("--clean", action="store_true",
+                        help="Clean before building (force full rebuild)")
     args = parser.parse_args()
 
     this_dir = Path(__file__).resolve().parent
@@ -71,7 +76,7 @@ def main():
     print(f"[gen_sim] Verif dir : {this_dir}")
     print(f"[gen_sim] RTL file  : {rtl_f}")
 
-    sim_bin = build_sim(this_dir, repo_root)
+    sim_bin = build_sim(this_dir, repo_root, clean=args.clean)
     return sim_bin
 
 

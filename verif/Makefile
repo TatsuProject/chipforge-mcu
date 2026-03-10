@@ -13,14 +13,12 @@ REPO_ROOT    ?= ..
 # Top-level testbench
 TB_TOP       ?= tb_top
 
-# Verilator options
+# Verilator options (compatible with 5.006+)
 VERILATOR_FLAGS = \
-  --timing --binary -Wall \
-  --Wno-fatal \
+  --binary --timing \
   --top-module $(TB_TOP) \
-  --cc --exe \
-  --Wno-PROCASSINIT --Wno-SYNCASYNCNET --Wno-BLKSEQ \
-  --Wno-WIDTHEXPAND --Wno-UNUSEDSIGNAL --Wno-UNUSEDPARAM --trace \
+  -Wall --Wno-fatal \
+  --trace \
   -CFLAGS "-std=c++17" \
   -I$(REPO_ROOT) \
   -f $(REPO_ROOT)/rtl.f \
@@ -30,11 +28,15 @@ VERILATOR_FLAGS = \
 SIM     = obj_dir/V$(TB_TOP)
 TARGET  = $(SIM)
 
+# Collect all RTL and TB source files for dependency tracking
+RTL_SRCS := $(shell cat $(REPO_ROOT)/rtl.f 2>/dev/null | sed 's|^|$(REPO_ROOT)/|')
+TB_SRCS  := $(shell cat tb_files.f 2>/dev/null)
+
 .PHONY: all clean run build_verilator_sim
 
 all: $(TARGET) run
 
-$(TARGET): $(REPO_ROOT)/rtl.f tb_files.f
+$(TARGET): $(REPO_ROOT)/rtl.f tb_files.f $(RTL_SRCS) $(TB_SRCS)
 	verilator $(VERILATOR_FLAGS)
 	$(MAKE) -C obj_dir -j -f V$(TB_TOP).mk
 
