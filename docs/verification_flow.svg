@@ -1,0 +1,115 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 620" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#475569"/>
+    </marker>
+    <marker id="arrow-green" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#16a34a"/>
+    </marker>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#f8fafc"/>
+      <stop offset="100%" stop-color="#f1f5f9"/>
+    </linearGradient>
+    <filter id="shadow" x="-4%" y="-4%" width="108%" height="112%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="900" height="620" rx="12" fill="url(#bg)" stroke="#e2e8f0" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="450" y="38" text-anchor="middle" font-size="18" font-weight="700" fill="#0f172a">RV32IMC Verification Flow</text>
+  <text x="450" y="58" text-anchor="middle" font-size="11" fill="#64748b">Automated trace-based comparison against Spike ISA reference model</text>
+
+  <!-- ═══ LEFT COLUMN: RTL Design ═══ -->
+  <!-- RTL Source Box -->
+  <rect x="40" y="85" width="200" height="70" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="140" y="112" text-anchor="middle" font-size="13" font-weight="600" fill="#1e40af">RTL Source</text>
+  <text x="140" y="130" text-anchor="middle" font-size="10" fill="#3b82f6">rv32imc_top.sv</text>
+  <text x="140" y="143" text-anchor="middle" font-size="10" fill="#3b82f6">27 SystemVerilog files</text>
+
+  <!-- Arrow RTL -> Verilator -->
+  <line x1="140" y1="155" x2="140" y2="185" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ═══ STEP 1: Compile ═══ -->
+  <rect x="40" y="190" width="200" height="80" rx="8" fill="#ffffff" stroke="#6366f1" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="40" y="190" width="200" height="24" rx="8" fill="#6366f1"/>
+  <rect x="40" y="202" width="200" height="12" fill="#6366f1"/>
+  <text x="140" y="207" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">STEP 1: Compile</text>
+  <text x="140" y="234" text-anchor="middle" font-size="10" fill="#4338ca">gen_sim.py</text>
+  <text x="140" y="248" text-anchor="middle" font-size="9" fill="#64748b">rtl.f + tb_files.f → Verilator</text>
+  <text x="140" y="261" text-anchor="middle" font-size="9" fill="#64748b">→ obj_dir/Vtb_top</text>
+
+  <!-- Arrow Compile -> Simulate -->
+  <line x1="140" y1="270" x2="140" y2="300" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ═══ CENTER: Test Stimuli ═══ -->
+  <rect x="350" y="85" width="200" height="70" rx="8" fill="#fefce8" stroke="#ca8a04" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="450" y="112" text-anchor="middle" font-size="13" font-weight="600" fill="#854d0e">Test Stimuli</text>
+  <text x="450" y="130" text-anchor="middle" font-size="10" fill="#a16207">7 suites x 100 iterations</text>
+  <text x="450" y="143" text-anchor="middle" font-size="10" fill="#a16207">imem_N.mem + dmem_N.mem</text>
+
+  <!-- Arrow Stimuli -> Simulate -->
+  <path d="M 395 155 Q 300 175 240 305" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ═══ RIGHT COLUMN: Spike Reference ═══ -->
+  <rect x="660" y="85" width="200" height="70" rx="8" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="760" y="112" text-anchor="middle" font-size="13" font-weight="600" fill="#166534">Spike ISA Simulator</text>
+  <text x="760" y="130" text-anchor="middle" font-size="10" fill="#16a34a">Pre-generated reference</text>
+  <text x="760" y="143" text-anchor="middle" font-size="10" fill="#16a34a">spike_trace_N.csv</text>
+
+  <!-- ═══ STEP 2: Simulate ═══ -->
+  <rect x="40" y="305" width="200" height="90" rx="8" fill="#ffffff" stroke="#6366f1" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="40" y="305" width="200" height="24" rx="8" fill="#6366f1"/>
+  <rect x="40" y="317" width="200" height="12" fill="#6366f1"/>
+  <text x="140" y="322" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">STEP 2: Simulate</text>
+  <text x="140" y="349" text-anchor="middle" font-size="10" fill="#4338ca">run_regression.py</text>
+  <text x="140" y="363" text-anchor="middle" font-size="9" fill="#64748b">Run Vtb_top for each test</text>
+  <text x="140" y="376" text-anchor="middle" font-size="9" fill="#64748b">RVFI tracer → core trace log</text>
+  <text x="140" y="389" text-anchor="middle" font-size="9" fill="#64748b">→ trace_core_00000001.log</text>
+
+  <!-- Arrow Simulate -> Convert -->
+  <line x1="140" y1="395" x2="140" y2="425" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ═══ Convert Trace ═══ -->
+  <rect x="40" y="430" width="200" height="60" rx="8" fill="#ffffff" stroke="#8b5cf6" stroke-width="1.5" filter="url(#shadow)"/>
+  <text x="140" y="455" text-anchor="middle" font-size="11" font-weight="600" fill="#6d28d9">Convert Trace</text>
+  <text x="140" y="472" text-anchor="middle" font-size="9" fill="#64748b">core_log_to_trace_csv.py</text>
+  <text x="140" y="485" text-anchor="middle" font-size="9" fill="#64748b">→ core_trace_N.csv</text>
+
+  <!-- Arrow Convert -> Compare (core side) -->
+  <path d="M 240 460 L 380 460" fill="none" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- Arrow Spike -> Compare -->
+  <path d="M 760 155 L 760 460 L 600 460" fill="none" stroke="#16a34a" stroke-width="1.5" marker-end="url(#arrow-green)"/>
+
+  <!-- ═══ STEP 3: Compare ═══ -->
+  <rect x="385" y="425" width="210" height="70" rx="8" fill="#ffffff" stroke="#6366f1" stroke-width="1.5" filter="url(#shadow)"/>
+  <rect x="385" y="425" width="210" height="24" rx="8" fill="#6366f1"/>
+  <rect x="385" y="437" width="210" height="12" fill="#6366f1"/>
+  <text x="490" y="442" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">STEP 3: Compare</text>
+  <text x="490" y="465" text-anchor="middle" font-size="10" fill="#4338ca">instr_trace_compare.py</text>
+  <text x="490" y="479" text-anchor="middle" font-size="9" fill="#64748b">GPR-state comparison per instruction</text>
+  <text x="490" y="491" text-anchor="middle" font-size="9" fill="#64748b">core_trace_N.csv vs spike_trace_N.csv</text>
+
+  <!-- Arrow Compare -> Summary -->
+  <line x1="490" y1="495" x2="490" y2="530" stroke="#475569" stroke-width="1.5" marker-end="url(#arrow)"/>
+
+  <!-- ═══ STEP 4: Summary ═══ -->
+  <rect x="350" y="535" width="280" height="65" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="2" filter="url(#shadow)"/>
+  <rect x="350" y="535" width="280" height="24" rx="8" fill="#16a34a"/>
+  <rect x="350" y="547" width="280" height="12" fill="#16a34a"/>
+  <text x="490" y="552" text-anchor="middle" font-size="11" font-weight="600" fill="#ffffff">STEP 4: Summary</text>
+  <text x="490" y="575" text-anchor="middle" font-size="10" fill="#166534">gen_summary.py → regression_summary.json</text>
+  <text x="490" y="591" text-anchor="middle" font-size="9" fill="#64748b">functionality_score, IPC, pass/fail counts</text>
+
+  <!-- Labels on arrows -->
+  <text x="310" y="455" text-anchor="middle" font-size="9" fill="#64748b" font-style="italic">core CSV</text>
+  <text x="690" y="455" text-anchor="middle" font-size="9" fill="#16a34a" font-style="italic">spike CSV</text>
+
+  <!-- Entry point annotation -->
+  <rect x="350" y="310" width="200" height="40" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1" stroke-dasharray="4,3"/>
+  <text x="450" y="328" text-anchor="middle" font-size="10" font-weight="600" fill="#92400e">python3 run_all.py</text>
+  <text x="450" y="342" text-anchor="middle" font-size="9" fill="#a16207">orchestrates all steps</text>
+</svg>

@@ -1,0 +1,14 @@
+# Verilator build output
+verif/obj_dir/
+
+# Simulation artifacts
+verif/*.mem
+verif/*.vcd
+verif/trace_core_*.log
+
+# Test results (generated at runtime)
+verif/results/
+
+# Python
+__pycache__/
+*.pyc
