@@ -1,12 +1,59 @@
-# ChipForge SN84 — RISC-V MCU
+# ChipForge MCU
 
-A RISC-V microcontroller core designed through decentralized competition on
-[Bittensor Subnet 84 (ChipForge)](https://chipforge.io). Miners compete to design
-and optimize the processor, evaluated on functionality, performance, area, and power.
+An open-source RISC-V microcontroller designed through decentralized
+competition on [Bittensor Subnet 84 (ChipForge)](https://chipforge.io).
 
-The core implements **RV32IMC** with scalar cryptography extensions
-(**Zkne**, **Zknd**, **Zknh**, **Zbkb**, **Zbkc**, **Zbkx**, **Zbb**), targeting
-low-power edge AI applications.
+ChipForge MCU is a 32-bit RISC-V processor implementing the **RV32IMC** instruction
+set with hardware-accelerated **scalar cryptography** extensions. The core is
+built in SystemVerilog and targets low-power edge applications — secure IoT nodes,
+TinyML inference, wearables, and smart sensors — where both performance and security
+are critical in a small silicon footprint.
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| **ISA** | RV32IMC + Zkne + Zknd + Zknh + Zbkb + Zbkc + Zbkx + Zbb |
+| **Pipeline** | 5-stage in-order (IF → ID → EX → MEM → WB) |
+| **Crypto Acceleration** | AES encrypt/decrypt, SHA-256, carry-less multiply, crossbar permutations |
+| **Compressed ISA** | 16-bit C-extension with hardware decompressor (IADU) |
+| **Multiply/Divide** | 2-stage pipelined multiplier, multicycle divider |
+| **HDL** | SystemVerilog, fully synthesizable |
+| **Verification** | Millions of instructions validated against Spike ISA simulator |
+| **Functionality** | 100% — every instruction matches the Spike golden reference |
+
+---
+
+## Roadmap
+
+<p align="center">
+  <img src="docs/roadmap.svg" alt="Development Roadmap" width="900"/>
+</p>
+
+---
+
+## Architecture
+
+### Processor Core
+
+The processor core is fully implemented — a 5-stage in-order RISC-V pipeline
+with a 2-stage pipelined multiplier, multicycle radix-4 divider, and dedicated
+crypto execution units for AES, SHA-256, and bit-manipulation. The
+microarchitecture is shown below.
+
+<p align="center">
+  <img src="docs/pipeline_microarchitecture.svg" alt="Microarchitecture Diagram" width="950"/>
+</p>
+
+### MCU SoC (Planned)
+
+The end goal is a complete MCU SoC built around the processor core. In the
+diagram below, **solid** blocks are implemented and **dashed** blocks are
+planned.
+
+<p align="center">
+  <img src="docs/mcu_system_architecture.svg" alt="Target MCU System Architecture" width="850"/>
+</p>
 
 ---
 
@@ -130,7 +177,7 @@ Run the complete test suite — 7 suites, 100 iterations each, 700 total runs:
 python3 run_all.py
 ```
 
-This takes approximately 15–30 minutes depending on your machine.
+This takes approximately 15-30 minutes depending on your machine.
 
 ### Selecting Specific Test Suites
 
@@ -173,6 +220,7 @@ Each stage of the pipeline can be run independently:
 
 ```bash
 python3 gen_sim.py            # Step 1: Compile RTL + testbench
+python3 gen_sim.py --clean    # Step 1: Force full rebuild
 python3 run_regression.py     # Step 2: Run tests and compare traces
 python3 gen_summary.py        # Step 3: Generate summary from existing results
 ```
@@ -196,7 +244,7 @@ Each suite contains **100 randomized iterations**, for a total of **700 test run
 Results are written to `verif/results/<date>/`:
 
 ```
-verif/results/2026-03-10/
+verif/results/2025-12-10/
   regression_summary.csv              # Per-iteration pass/fail
   regression_summary.json             # Aggregated scores
   riscv_arithmetic_basic_test/
@@ -223,31 +271,6 @@ The JSON summary:
 
 ---
 
-## Architecture
-
-| Property | Value |
-|----------|-------|
-| **ISA** | RV32IMC + Zkne + Zknd + Zknh + Zbkb + Zbkc + Zbkx + Zbb |
-| **Pipeline** | Multi-stage in-order with hazard detection and forwarding |
-| **Top module** | `rv32imc_top` |
-| **HDL** | SystemVerilog |
-
-### Supported Extensions
-
-| Extension | Instructions |
-|-----------|-------------|
-| **I** | Base integer (RV32I) |
-| **M** | Hardware multiply/divide (`mul`, `mulh`, `div`, `rem`, ...) |
-| **C** | Compressed 16-bit instructions |
-| **Zkne/Zknd** | AES encrypt/decrypt (`aes32esi`, `aes32esmi`, `aes32dsi`, `aes32dsmi`) |
-| **Zknh** | SHA-256 acceleration (`sha256sum0`, `sha256sum1`, `sha256sig0`, `sha256sig1`) |
-| **Zbkb** | Bit-manipulation for crypto (`pack`, `packh`, `brev8`, `zip`, `unzip`) |
-| **Zbkc** | Carry-less multiply (`clmul`, `clmulh`) |
-| **Zbkx** | Crossbar permutations (`xperm4`, `xperm8`) |
-| **Zbb** | Basic bit-manipulation (`andn`, `orn`, `xnor`, `rol`, `ror`, `rev8`, ...) |
-
----
-
 ## Project Structure
 
 ```
@@ -259,20 +282,20 @@ rtl/                              # Processor RTL (SystemVerilog)
   decode_control.sv               # Instruction decoder
   alu.sv                          # ALU with Zbb support
   alu_control.sv                  # ALU operation selection
-  mul_unit.sv                     # M-extension multiplier
-  div_unit.sv                     # M-extension divider
+  mul_unit.sv                     # M-extension multiplier (2-stage)
+  div_unit.sv                     # M-extension divider (multicycle)
   decompressor.sv                 # C-extension decompressor
-  csr_file.sv                     # CSR file
-  reg_file.sv                     # Register file (32x32)
+  csr_file.sv                     # CSR file (mtvec, mepc, mcause, ...)
+  reg_file.sv                     # Register file (32 x 32-bit)
   imm_gen.sv                      # Immediate generator
   lsu.sv                          # Load/store unit
-  mem_controller.sv               # Memory controller
+  mem_controller.sv               # Memory controller FSM
   branch_controller.sv            # Branch resolution
   forwarding_unit.sv              # Data hazard forwarding
   hazard_controller.sv            # Hazard detection
   pipeline_controller.sv          # Pipeline flow control
   exception_encoder.sv            # Exception handling
-  iadu.sv                         # Instruction address decode
+  iadu.sv                         # Instruction address decode unit
   alignment_units.sv              # Address alignment
   core_dbg_fsm.sv                 # Debug FSM
   lib.sv                          # Shared types and primitives
@@ -297,7 +320,10 @@ verif/                            # Verification environment
   results/                        # Output (generated at runtime)
 
 docs/
+  pipeline_microarchitecture.svg  # Processor pipeline diagram
+  mcu_system_architecture.svg     # Target MCU system diagram
   verification_flow.svg           # Verification flow diagram
+  roadmap.svg                     # Development roadmap
 ```
 
 ---
@@ -324,36 +350,6 @@ Designs are scored on a weighted combination of:
 - **Power** (0-17%) — introduced in Challenge 010
 
 ---
-
-## Roadmap
-
-### ISA Extensions
-
-- [ ] **F** — Single-precision floating-point (`fadd.s`, `fsub.s`, `fmul.s`, `fdiv.s`, `fsqrt.s`, `fcvt`, `fmv`, IEEE 754 compliant)
-- [ ] **Zicond** — Integer conditional operations (`czero.eqz`, `czero.nez` — branchless select, eliminates branch penalties)
-
-### System & Software
-
-- [ ] RISC-V Debug Module (dm spec 0.13) with JTAG TAP
-- [ ] CLIC — Core-Local Interrupt Controller (preemptive, priority-based interrupts for RTOS)
-- [ ] PMP — Physical Memory Protection (memory isolation for RTOS tasks)
-- [ ] RTOS support (FreeRTOS / Zephyr BSP)
-
-### Peripherals
-
-- [ ] UART, SPI, I2C, GPIO
-- [ ] Timer / watchdog (RISC-V mtime/mtimecmp compliant)
-- [ ] DMA controller
-
-### Verification
-
-- [ ] Integrated test generation — run Spike + random program generator alongside RTL simulation in a single flow
-- [ ] Formal verification for critical control paths (hazard detection, CSR access)
-- [ ] Code coverage tracking (line, toggle, FSM)
-
-### Architecture
-
-- [ ] Dual-core configuration with shared memory
 
 ## License
 

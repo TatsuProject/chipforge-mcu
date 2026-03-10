@@ -1,0 +1,100 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 520" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <filter id="sh" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="1" stdDeviation="1.5" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="520" rx="8" fill="#f0f2f5" stroke="#dce1e8" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="500" y="26" text-anchor="middle" font-size="14" font-weight="700" fill="#1e293b">Microarchitecture Diagram</text>
+
+  <!-- ═══ STAGE COLUMNS ═══ -->
+  <rect x="12" y="38" width="140" height="340" rx="7" fill="#f4c6c6" opacity="0.45"/>
+  <text x="82" y="54" text-anchor="middle" font-size="12" font-weight="700" fill="#8b2525">IF</text>
+
+  <rect x="164" y="38" width="170" height="340" rx="7" fill="#c6d4f4" opacity="0.45"/>
+  <text x="249" y="54" text-anchor="middle" font-size="12" font-weight="700" fill="#2b4a8b">ID</text>
+
+  <rect x="346" y="38" width="200" height="340" rx="7" fill="#d4c6f4" opacity="0.45"/>
+  <text x="446" y="54" text-anchor="middle" font-size="12" font-weight="700" fill="#5a3a8b">EX</text>
+
+  <rect x="558" y="38" width="200" height="340" rx="7" fill="#c6f4e0" opacity="0.45"/>
+  <text x="658" y="54" text-anchor="middle" font-size="12" font-weight="700" fill="#1d6b4f">MEM</text>
+
+  <rect x="770" y="38" width="218" height="340" rx="7" fill="#c6ecf4" opacity="0.45"/>
+  <text x="879" y="54" text-anchor="middle" font-size="12" font-weight="700" fill="#1d5c6b">WB</text>
+
+  <!-- ═══ PIPELINE REGISTERS ═══ -->
+  <rect x="152" y="44" width="14" height="328" rx="4" fill="#5a6577" opacity="0.7"/>
+  <rect x="334" y="44" width="14" height="328" rx="4" fill="#5a6577" opacity="0.7"/>
+  <rect x="546" y="44" width="14" height="270" rx="4" fill="#5a6577" opacity="0.7"/>
+  <rect x="758" y="44" width="14" height="270" rx="4" fill="#5a6577" opacity="0.7"/>
+
+  <!-- ═══ IF STAGE — salmon/red borders ═══ -->
+  <rect x="24" y="66" width="118" height="40" rx="5" fill="#fff" stroke="#b04040" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="83" y="90" text-anchor="middle" font-size="10" font-weight="600" fill="#8b2525">PC Register</text>
+
+  <rect x="24" y="120" width="118" height="50" rx="5" fill="#fff" stroke="#b04040" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="83" y="150" text-anchor="middle" font-size="10" font-weight="600" fill="#8b2525">IADU</text>
+
+  <!-- ═══ ID STAGE — blue borders ═══ -->
+  <rect x="178" y="66" width="144" height="40" rx="5" fill="#fff" stroke="#3d62a8" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="250" y="90" text-anchor="middle" font-size="10" font-weight="600" fill="#2b4a8b">Decode Control</text>
+
+  <rect x="178" y="120" width="144" height="80" rx="5" fill="#fff" stroke="#2b4a8b" stroke-width="2" filter="url(#sh)"/>
+  <text x="250" y="164" text-anchor="middle" font-size="11" font-weight="700" fill="#2b4a8b">Register File</text>
+
+  <rect x="178" y="214" width="144" height="40" rx="5" fill="#fff" stroke="#3d62a8" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="250" y="238" text-anchor="middle" font-size="10" font-weight="600" fill="#2b4a8b">Imm Gen</text>
+
+  <!-- ═══ EX STAGE — purple borders ═══ -->
+  <rect x="360" y="66" width="174" height="65" rx="5" fill="#fff" stroke="#5a3a8b" stroke-width="2" filter="url(#sh)"/>
+  <text x="447" y="103" text-anchor="middle" font-size="11" font-weight="700" fill="#5a3a8b">ALU</text>
+
+  <rect x="360" y="145" width="174" height="45" rx="5" fill="#fff" stroke="#7452a8" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="447" y="172" text-anchor="middle" font-size="10" font-weight="600" fill="#5a3a8b">Crypto Unit</text>
+
+  <rect x="360" y="204" width="174" height="40" rx="5" fill="#fff" stroke="#7452a8" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="447" y="228" text-anchor="middle" font-size="10" font-weight="600" fill="#5a3a8b">Jump Address Calc</text>
+
+  <!-- ═══ MEM STAGE — green borders ═══ -->
+  <rect x="572" y="66" width="174" height="65" rx="5" fill="#fff" stroke="#1d6b4f" stroke-width="2" filter="url(#sh)"/>
+  <text x="659" y="103" text-anchor="middle" font-size="11" font-weight="600" fill="#1d6b4f">Load/Store Unit</text>
+
+  <rect x="572" y="145" width="174" height="45" rx="5" fill="#fff" stroke="#2d8a6a" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="659" y="172" text-anchor="middle" font-size="10" font-weight="600" fill="#1d6b4f">Result Mux</text>
+
+  <!-- ═══ WB STAGE — teal borders ═══ -->
+  <rect x="784" y="66" width="190" height="65" rx="5" fill="#fff" stroke="#1d5c6b" stroke-width="2" filter="url(#sh)"/>
+  <text x="879" y="103" text-anchor="middle" font-size="11" font-weight="700" fill="#1d5c6b">WB Mux</text>
+
+  <!-- ═══ MULTIPLIER — purple border (spans EX+MEM) ═══ -->
+  <rect x="360" y="258" width="386" height="50" rx="5" fill="#fff" stroke="#5a3a8b" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="553" y="288" text-anchor="middle" font-size="11" font-weight="700" fill="#5a3a8b">Multiplier (2-stage pipelined)</text>
+
+  <!-- ═══ DIVIDER — dark neutral border (out-of-pipeline) ═══ -->
+  <rect x="360" y="322" width="616" height="50" rx="5" fill="#fff" stroke="#5a6577" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="668" y="352" text-anchor="middle" font-size="11" font-weight="700" fill="#3a414a">Divider (multicycle, out-of-pipeline)</text>
+
+  <!-- ═══ CONTROL UNIT — warm muted tone ═══ -->
+  <rect x="12" y="400" width="976" height="108" rx="8" fill="#e8ddd0" stroke="#a08a72" stroke-width="1.5" filter="url(#sh)"/>
+  <text x="500" y="424" text-anchor="middle" font-size="13" font-weight="700" fill="#4a3b28">Control Unit</text>
+
+  <rect x="36" y="440" width="170" height="46" rx="5" fill="#fff" stroke="#a08a72" stroke-width="1.2"/>
+  <text x="121" y="468" text-anchor="middle" font-size="10" font-weight="600" fill="#4a3b28">Hazard Controller</text>
+
+  <rect x="224" y="440" width="170" height="46" rx="5" fill="#fff" stroke="#a08a72" stroke-width="1.2"/>
+  <text x="309" y="468" text-anchor="middle" font-size="10" font-weight="600" fill="#4a3b28">Forwarding Unit</text>
+
+  <rect x="412" y="440" width="170" height="46" rx="5" fill="#fff" stroke="#a08a72" stroke-width="1.2"/>
+  <text x="497" y="468" text-anchor="middle" font-size="10" font-weight="600" fill="#4a3b28">Pipeline Controller</text>
+
+  <rect x="600" y="440" width="170" height="46" rx="5" fill="#fff" stroke="#a08a72" stroke-width="1.2"/>
+  <text x="685" y="468" text-anchor="middle" font-size="10" font-weight="600" fill="#4a3b28">Branch Controller</text>
+
+  <rect x="788" y="440" width="170" height="46" rx="5" fill="#fff" stroke="#a08a72" stroke-width="1.2"/>
+  <text x="873" y="468" text-anchor="middle" font-size="10" font-weight="600" fill="#4a3b28">ALU Control</text>
+</svg>

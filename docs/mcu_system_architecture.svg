@@ -1,0 +1,153 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 720" font-family="'Segoe UI', 'Helvetica Neue', Arial, sans-serif">
+  <defs>
+    <marker id="a" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0, 8 3, 0 6" fill="#475569"/>
+    </marker>
+    <filter id="s" x="-2%" y="-2%" width="104%" height="108%">
+      <feDropShadow dx="0" dy="1" stdDeviation="2" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1000" height="720" rx="10" fill="#f0f2f5" stroke="#dce1e8" stroke-width="1"/>
+
+  <!-- Title -->
+  <text x="500" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#1e293b">Target MCU System Architecture</text>
+
+  <!-- ═══ DEBUG (Top) — planned ═══ -->
+  <rect x="30" y="55" width="120" height="40" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" filter="url(#s)"/>
+  <text x="90" y="75" text-anchor="middle" font-size="10" font-weight="600" fill="#64748b">JTAG TAP</text>
+  <text x="90" y="88" text-anchor="middle" font-size="7" fill="#94a3b8">(planned)</text>
+
+  <line x1="150" y1="75" x2="185" y2="75" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#a)"/>
+
+  <rect x="190" y="55" width="160" height="40" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" filter="url(#s)"/>
+  <text x="270" y="75" text-anchor="middle" font-size="10" font-weight="600" fill="#64748b">Debug Module</text>
+  <text x="270" y="88" text-anchor="middle" font-size="7" fill="#94a3b8">(planned)</text>
+
+  <line x1="270" y1="95" x2="270" y2="120" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" marker-end="url(#a)"/>
+
+  <!-- ═══ PROCESSOR CORE ═══ -->
+  <rect x="80" y="125" width="380" height="250" rx="10" fill="#e3f2fd" stroke="#2b4a8b" stroke-width="2" filter="url(#s)"/>
+  <text x="270" y="150" text-anchor="middle" font-size="13" font-weight="700" fill="#2b4a8b">RV32IMC Processor Core</text>
+
+  <!-- Sub-blocks inside core -->
+  <rect x="100" y="170" width="155" height="38" rx="5" fill="#fff" stroke="#3d62a8" stroke-width="1.2" filter="url(#s)"/>
+  <text x="177" y="193" text-anchor="middle" font-size="9" font-weight="600" fill="#2b4a8b">5-Stage Pipeline</text>
+
+  <rect x="270" y="170" width="175" height="38" rx="5" fill="#fff" stroke="#3d62a8" stroke-width="1.2" filter="url(#s)"/>
+  <text x="357" y="193" text-anchor="middle" font-size="9" font-weight="600" fill="#2b4a8b">Crypto Extensions</text>
+
+  <rect x="100" y="220" width="105" height="35" rx="5" fill="#fff" stroke="#3d62a8" stroke-width="1.2" filter="url(#s)"/>
+  <text x="152" y="241" text-anchor="middle" font-size="9" font-weight="600" fill="#2b4a8b">MUL/DIV</text>
+
+  <rect x="215" y="220" width="100" height="35" rx="5" fill="#fff" stroke="#3d62a8" stroke-width="1.2" filter="url(#s)"/>
+  <text x="265" y="241" text-anchor="middle" font-size="9" font-weight="600" fill="#2b4a8b">Decompressor</text>
+
+  <rect x="325" y="220" width="120" height="35" rx="5" fill="#fff" stroke="#3d62a8" stroke-width="1.2" filter="url(#s)"/>
+  <text x="385" y="241" text-anchor="middle" font-size="9" font-weight="600" fill="#2b4a8b">Hazard + FWD</text>
+
+  <!-- Planned additions inside core -->
+  <rect x="100" y="270" width="155" height="30" rx="5" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="177" y="289" text-anchor="middle" font-size="8" fill="#94a3b8" font-style="italic">FPU — F-extension (planned)</text>
+
+  <rect x="270" y="270" width="175" height="30" rx="5" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="357" y="289" text-anchor="middle" font-size="8" fill="#94a3b8" font-style="italic">PMP (planned)</text>
+
+  <!-- Processor core label at bottom -->
+  <text x="270" y="350" text-anchor="middle" font-size="8" fill="#2b4a8b">rv32imc_top</text>
+
+  <!-- ═══ MEMORIES ═══ -->
+  <rect x="530" y="135" width="150" height="55" rx="6" fill="#e3f2fd" stroke="#2b4a8b" stroke-width="1.5" filter="url(#s)"/>
+  <text x="605" y="160" text-anchor="middle" font-size="10" font-weight="700" fill="#2b4a8b">IMEM</text>
+  <text x="605" y="178" text-anchor="middle" font-size="8" fill="#3d62a8">SRAM</text>
+
+  <rect x="530" y="205" width="150" height="55" rx="6" fill="#e3f2fd" stroke="#2b4a8b" stroke-width="1.5" filter="url(#s)"/>
+  <text x="605" y="230" text-anchor="middle" font-size="10" font-weight="700" fill="#2b4a8b">DMEM</text>
+  <text x="605" y="248" text-anchor="middle" font-size="8" fill="#3d62a8">SRAM</text>
+
+  <!-- Core to memory arrows -->
+  <line x1="460" y1="163" x2="525" y2="163" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+  <line x1="460" y1="233" x2="525" y2="233" stroke="#475569" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- ═══ CLIC + PLIC ═══ -->
+  <rect x="530" y="310" width="150" height="50" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" filter="url(#s)"/>
+  <text x="605" y="332" text-anchor="middle" font-size="10" font-weight="600" fill="#64748b">CLIC + PLIC</text>
+  <text x="605" y="350" text-anchor="middle" font-size="7" fill="#94a3b8">(planned)</text>
+  <line x1="605" y1="360" x2="605" y2="390" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#a)"/>
+
+  <!-- ═══ AXI BUS (Fast Bus) ═══ -->
+  <rect x="80" y="395" width="600" height="30" rx="6" fill="#2b4a8b" opacity="0.9"/>
+  <text x="380" y="415" text-anchor="middle" font-size="11" font-weight="700" fill="#fff">AXI — System Bus</text>
+
+  <!-- Core to AXI bus -->
+  <line x1="270" y1="375" x2="270" y2="390" stroke="#475569" stroke-width="2" marker-end="url(#a)"/>
+
+  <!-- ═══ DMA ═══ -->
+  <rect x="730" y="385" width="120" height="50" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" filter="url(#s)"/>
+  <text x="790" y="408" text-anchor="middle" font-size="10" font-weight="600" fill="#64748b">DMA</text>
+  <text x="790" y="424" text-anchor="middle" font-size="7" fill="#94a3b8">(planned)</text>
+  <line x1="680" y1="410" x2="725" y2="410" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#a)"/>
+
+  <!-- ═══ WISHBONE BRIDGE ═══ -->
+  <rect x="280" y="445" width="140" height="30" rx="5" fill="#5a3a8b" filter="url(#s)"/>
+  <text x="350" y="464" text-anchor="middle" font-size="9" font-weight="600" fill="#fff">AXI → Wishbone Bridge</text>
+  <line x1="350" y1="425" x2="350" y2="440" stroke="#5a3a8b" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- ═══ WISHBONE BUS (Peripheral Bus) ═══ -->
+  <rect x="80" y="495" width="600" height="28" rx="6" fill="#5a3a8b" opacity="0.8"/>
+  <text x="380" y="514" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">Wishbone — Peripheral Bus</text>
+  <line x1="350" y1="475" x2="350" y2="490" stroke="#5a3a8b" stroke-width="1.5" marker-end="url(#a)"/>
+
+  <!-- ═══ PERIPHERALS ═══ -->
+  <rect x="55" y="545" width="100" height="45" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" filter="url(#s)"/>
+  <text x="105" y="571" text-anchor="middle" font-size="10" font-weight="600" fill="#64748b">UART</text>
+  <line x1="105" y1="523" x2="105" y2="540" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#a)"/>
+
+  <rect x="170" y="545" width="100" height="45" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" filter="url(#s)"/>
+  <text x="220" y="571" text-anchor="middle" font-size="10" font-weight="600" fill="#64748b">SPI</text>
+  <line x1="220" y1="523" x2="220" y2="540" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#a)"/>
+
+  <rect x="285" y="545" width="100" height="45" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" filter="url(#s)"/>
+  <text x="335" y="571" text-anchor="middle" font-size="10" font-weight="600" fill="#64748b">I2C</text>
+  <line x1="335" y1="523" x2="335" y2="540" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#a)"/>
+
+  <rect x="400" y="545" width="100" height="45" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" filter="url(#s)"/>
+  <text x="450" y="571" text-anchor="middle" font-size="10" font-weight="600" fill="#64748b">GPIO</text>
+  <line x1="450" y1="523" x2="450" y2="540" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#a)"/>
+
+  <rect x="515" y="545" width="100" height="45" rx="6" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4,2" filter="url(#s)"/>
+  <text x="565" y="571" text-anchor="middle" font-size="10" font-weight="600" fill="#64748b">Timer/WDT</text>
+  <line x1="565" y1="523" x2="565" y2="540" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4,2" marker-end="url(#a)"/>
+
+  <!-- ═══ EXTERNAL I/O ═══ -->
+  <rect x="55" y="610" width="100" height="28" rx="4" fill="#e8ddd0" stroke="#a08a72" stroke-width="1"/>
+  <text x="105" y="628" text-anchor="middle" font-size="8" fill="#4a3b28">TX / RX</text>
+
+  <rect x="170" y="610" width="100" height="28" rx="4" fill="#e8ddd0" stroke="#a08a72" stroke-width="1"/>
+  <text x="220" y="628" text-anchor="middle" font-size="8" fill="#4a3b28">MOSI/MISO/SCK/CS</text>
+
+  <rect x="285" y="610" width="100" height="28" rx="4" fill="#e8ddd0" stroke="#a08a72" stroke-width="1"/>
+  <text x="335" y="628" text-anchor="middle" font-size="8" fill="#4a3b28">SDA / SCL</text>
+
+  <rect x="400" y="610" width="100" height="28" rx="4" fill="#e8ddd0" stroke="#a08a72" stroke-width="1"/>
+  <text x="450" y="628" text-anchor="middle" font-size="8" fill="#4a3b28">GPIO[31:0]</text>
+
+  <!-- Lines from peripherals to external -->
+  <line x1="105" y1="590" x2="105" y2="605" stroke="#a08a72" stroke-width="1" marker-end="url(#a)"/>
+  <line x1="220" y1="590" x2="220" y2="605" stroke="#a08a72" stroke-width="1" marker-end="url(#a)"/>
+  <line x1="335" y1="590" x2="335" y2="605" stroke="#a08a72" stroke-width="1" marker-end="url(#a)"/>
+  <line x1="450" y1="590" x2="450" y2="605" stroke="#a08a72" stroke-width="1" marker-end="url(#a)"/>
+
+  <!-- ═══ LEGEND ═══ -->
+  <rect x="730" y="490" width="240" height="115" rx="6" fill="#fff" stroke="#dce1e8" stroke-width="1"/>
+  <text x="745" y="510" font-size="9" font-weight="700" fill="#1e293b">Legend</text>
+  <rect x="745" y="520" width="40" height="14" rx="3" fill="#e3f2fd" stroke="#2b4a8b" stroke-width="1.5"/>
+  <text x="795" y="531" font-size="8" fill="#64748b">Implemented</text>
+  <rect x="745" y="542" width="40" height="14" rx="3" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1" stroke-dasharray="4,2"/>
+  <text x="795" y="553" font-size="8" fill="#64748b">Planned</text>
+  <rect x="745" y="564" width="40" height="14" rx="3" fill="#2b4a8b" opacity="0.9"/>
+  <text x="795" y="575" font-size="8" fill="#64748b">AXI Bus</text>
+  <rect x="745" y="586" width="40" height="14" rx="3" fill="#5a3a8b" opacity="0.8"/>
+  <text x="795" y="597" font-size="8" fill="#64748b">Wishbone Bus</text>
+</svg>
