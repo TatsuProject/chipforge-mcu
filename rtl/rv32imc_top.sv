@@ -13,7 +13,7 @@ output logic mem_wstrb_o – memory write strobe output
 output logic mem_read_o – memory read enable
 input logic mem_ack_i – memory acknowledge (indicates readiness of memory data transfer)
 */
-module rv32imc_top(
+module core_top(
   input         clk_i,
   input         resetn_i,
   output        illegal_inst_o,
@@ -62,4 +62,38 @@ module rv32imc_top(
     .inst_fetch_stall(1'b0)
 );
 
-endmodule 
+endmodule
+
+// Thin wrapper so the local testbench (verif/tb_top.sv) — which instantiates
+// rv32imc_top — can still elaborate. Submission top remains core_top.
+module rv32imc_top(
+  input         clk_i,
+  input         resetn_i,
+  output        illegal_inst_o,
+  output [31:0] imem_addr_o,
+  input  [31:0] imem_inst_i,
+  output [31:0] mem_addr_o,
+  output [31:0] mem_dat_o,
+  input  [31:0] mem_dat_i,
+  output        mem_write_o,
+  output [3:0]  mem_wstrb_o,
+  output        mem_read_o,
+  input         mem_ack_i
+);
+
+  core_top u_core_top (
+    .clk_i          (clk_i),
+    .resetn_i       (resetn_i),
+    .illegal_inst_o (illegal_inst_o),
+    .imem_addr_o    (imem_addr_o),
+    .imem_inst_i    (imem_inst_i),
+    .mem_addr_o     (mem_addr_o),
+    .mem_dat_o      (mem_dat_o),
+    .mem_dat_i      (mem_dat_i),
+    .mem_write_o    (mem_write_o),
+    .mem_wstrb_o    (mem_wstrb_o),
+    .mem_read_o     (mem_read_o),
+    .mem_ack_i      (mem_ack_i)
+  );
+
+endmodule

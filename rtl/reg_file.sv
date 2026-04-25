@@ -1,32 +1,68 @@
+// Integer register file — 32 x 32-bit, 2R/2W.
+//
+// Port 1 (main): the normal WB write from reg_wdata_wb. Fires for non-FP-
+//                writing instructions at their WB cycle.
+// Port 2 (fp-delayed): the WB+1 write for FP→int instructions (FCVT.W.S,
+//                FCVT.WU.S, FMV.X.W, FCLASS, FEQ, FLT, FLE). Needed because
+//                the 4-stage FPU produces its result one cycle after WB.
+//
+// Both read ports use write-before-read bypass so a consumer at ID can read
+// the value a producer is writing on the same rising edge (no separate
+// WB→ID / WB+1→ID forwarding muxes required outside this file). Priority
+// is port 1 > port 2 > stored, because port 1 is always the program-order-
+// newer instruction when both fire in the same cycle.
 module reg_file #(
     parameter DEPTH = 32,
     parameter WIDTH = 32
 ) (
-    input  logic clk, 
-    input  logic reset_n, 
-    input  logic reg_write, 
-    input  logic [4:0] raddr1, 
-    input  logic [4:0] raddr2, 
-    input  logic [4:0] waddr, 
-    input  logic [31:0] wdata,
-    output logic [31:0] rdata1,
-    output logic [31:0] rdata2
+    input  logic         clk,
+    input  logic         reset_n,
+    // Port 1 — main WB write
+    input  logic         reg_write,
+    input  logic  [4:0]  waddr,
+    input  logic  [31:0] wdata,
+    // Port 2 — FP→int WB+1 write
+    input  logic         reg_write2,
+    input  logic  [4:0]  waddr2,
+    input  logic  [31:0] wdata2,
+    // Reads
+    input  logic  [4:0]  raddr1,
+    input  logic  [4:0]  raddr2,
+    output logic  [31:0] rdata1,
+    output logic  [31:0] rdata2
 );
 
     logic [WIDTH - 1:0] reg_file [1:DEPTH-1]; // Exclude x0 (index 0)
 
     int i;
-    always @(posedge clk or negedge reset_n) begin 
-        if (!reset_n) begin 
+    always_ff @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
             for (i = 1; i < DEPTH; i = i + 1)
-                reg_file[i] <= 0;
-        end else if (reg_write && (waddr != 5'd0)) begin
-            reg_file[waddr] <= wdata;
+                reg_file[i] <= 32'd0;
+        end else begin
+            // Port 2 first, so a same-cycle port-1 write to the same address
+            // overrides it (program-order-newer wins).
+            if (reg_write2 && waddr2 != 5'd0)
+                reg_file[waddr2] <= wdata2;
+            if (reg_write && waddr != 5'd0)
+                reg_file[waddr] <= wdata;
         end
     end
 
-    assign rdata1 = reg_file[raddr1];
-    assign rdata2 = reg_file[raddr2];
+    // Write-before-read bypass, priority port 1 > port 2 > storage.
+    wire p1_hit1 = reg_write  && (waddr  == raddr1) && (waddr  != 5'd0);
+    wire p2_hit1 = reg_write2 && (waddr2 == raddr1) && (waddr2 != 5'd0);
+    wire p1_hit2 = reg_write  && (waddr  == raddr2) && (waddr  != 5'd0);
+    wire p2_hit2 = reg_write2 && (waddr2 == raddr2) && (waddr2 != 5'd0);
+
+    assign rdata1 = (raddr1 == 5'd0) ? 32'd0
+                  : p1_hit1           ? wdata
+                  : p2_hit1           ? wdata2
+                  :                     reg_file[raddr1];
+    assign rdata2 = (raddr2 == 5'd0) ? 32'd0
+                  : p1_hit2           ? wdata
+                  : p2_hit2           ? wdata2
+                  :                     reg_file[raddr2];
 
 `ifdef verilator
     logic [31:0] x1,x2,x3,x4,x5,x6,x7,x8,x9,x10,x11,x12,x13,x14,x15,x16,x17;

@@ -5,6 +5,7 @@ module pipeline_controller (
     input logic atomic_unit_stall,
     input logic atomic_unit_hazard,
     input logic mul_hazard,
+    input logic fp_hazard,
     input logic div_busy,
     input logic trap,
     input logic trap_ret,
@@ -32,7 +33,7 @@ module pipeline_controller (
 
     assign critical_clear = trap | trap_ret | core_halted;
     assign common_stall = div_busy | stall_pipl | atomic_unit_stall;
-    assign data_hazard = load_hazard | mul_hazard;
+    assign data_hazard = load_hazard | mul_hazard | fp_hazard;
 
     // assign if_id_reg_clr   = critical_clear | dbg_ret | branch_hazard | inst_fetch_stall_ff;
     

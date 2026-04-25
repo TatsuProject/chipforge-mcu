@@ -29,7 +29,9 @@ from lib import *
 
 RD_RE = re.compile(
     r"(core\s+\d+:\s+)?(?P<pri>\d)\s+0x(?P<addr>[a-f0-9]+?)\s+" \
-    r"\((?P<bin>.*?)\)\s+(?P<reg>[xf]\s*\d*?)\s+0x(?P<val>[a-f0-9]+)" \
+    r"\((?P<bin>.*?)\)" \
+    r"(?:\s+(?P<csr_pre>[a-zA-Z_][a-zA-Z0-9_]*)\s+0x(?P<csr_pre_val>[a-f0-9]+))?" \
+    r"\s+(?P<reg>[xf]\s*\d+)\s+0x(?P<val>[a-f0-9]+)" \
     r"(\s+(?P<csr>\S+)\s+0x(?P<csr_val>[a-f0-9]+))?")
 CORE_RE = re.compile(
     r"core\s+\d+:\s+0x(?P<addr>[a-f0-9]+?)\s+\(0x(?P<bin>.*?)\)\s+(?P<instr>.*?)$")

@@ -8,6 +8,14 @@ rtl/csr_file.sv
 rtl/imm_gen.sv
 rtl/decode_control.sv
 rtl/reg_file.sv
+rtl/fp_reg_file.sv
+rtl/fpu/fpu_sgnj.sv
+rtl/fpu/fpu_minmax.sv
+rtl/fpu/fpu_cvt_f2i.sv
+rtl/fpu/fpu_cvt_i2f.sv
+rtl/fpu/fpu_addsub.sv
+rtl/fpu/fpu_mul.sv
+rtl/fpu/fpu_unit.sv
 rtl/forwarding_unit.sv
 rtl/hazard_controller.sv
 rtl/pipeline_controller.sv

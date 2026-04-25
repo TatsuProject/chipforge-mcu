@@ -8,31 +8,42 @@ module data_path #(
     input logic clk, 
     input logic reset_n,
 
-    // outputs to controller 
+    // outputs to controller
     output logic [6:0] opcode_id,
-    // additional signal has been added 
+    // additional signal has been added
     output logic [6:0] fun7_exe,
     output logic [2:0] fun3_exe, fun3_mem,
+    output logic [6:0] fun7_id,           // F-extension decode (Challenge 0013)
+    output logic [2:0] fun3_id,
     output logic zero_mem,
     output logic [1:0] alu_op_exe,
-    output logic jump_mem, 
+    output logic jump_mem,
     output logic branch_mem,
 
-    // control signals from the controller 
-    input logic reg_write_id, 
-    input logic mem_write_id, 
-    input logic mem_to_reg_id, 
-    input logic branch_id, 
+    // control signals from the controller
+    input logic reg_write_id,
+    input logic mem_write_id,
+    input logic mem_to_reg_id,
+    input logic branch_id,
     input logic alu_src_id,
-    input logic jump_id, 
+    input logic jump_id,
     input logic lui_id,
-    input logic auipc_id, 
+    input logic auipc_id,
     input logic jal_id,
     input logic r_type_id,
     input logic [1:0] alu_op_id,
     input logic sys_inst_id,
     input logic is_atomic_id,
     input logic illegal_inst_id,
+
+    // F-extension decode inputs (Challenge 0013)
+    input logic       is_fp_id,
+    input logic       fp_reg_write_id,
+    input logic       fp_wb_to_int_id,
+    input logic       fp_uses_rs1_id,
+    input logic       fp_uses_rs2_id,
+    input logic [4:0] fpu_op_id,
+    input logic [2:0] fp_rm_id,
     // modified
     input logic [9:0] alu_ctrl_exe,
     // additional signal has been added for AES
@@ -90,6 +101,17 @@ module data_path #(
     output logic is_mul_exe,
     output logic div_busy,
 
+    // F extension EX/MEM/WB-stage hazard exports (4-stage FP pipeline)
+    output logic is_fp_multicycle_exe,
+    output logic fp_reg_write_exe,
+    output logic fp_wb_to_int_exe,
+    output logic is_fp_multicycle_mem,
+    output logic fp_reg_write_mem,
+    output logic fp_wb_to_int_mem,
+    output logic is_fp_multicycle_wb,
+    output logic fp_reg_write_wb,
+    output logic fp_wb_to_int_wb,
+
     // inst mem access
     output logic [31:0] current_pc_if,
     input logic [31:0] inst_if,
@@ -123,7 +145,8 @@ module data_path #(
     input  logic inst_fetch_stall,
     output logic inst_fetch_stall_ff,
     input  logic load_hazard,
-    input  logic mul_hazard
+    input  logic mul_hazard,
+    input  logic fp_hazard
 
 `ifdef tracer
     ,
@@ -155,6 +178,34 @@ module data_path #(
     logic [31:0] reg_rdata1_id, reg_rdata1_exe, reg_rdata1_mem;
     logic [31:0] reg_rdata2_id, reg_rdata2_exe;
     logic [31:0] reg_wdata_wb;
+
+    // ---- F extension (Challenge 0013) signal declarations ----
+    // ID stage — decode signals (is_fp_id..fp_rm_id) are module inputs now.
+    logic [31:0] fp_rdata1_raw, fp_rdata2_raw;          // raw fp_reg_file outputs
+    logic [31:0] fp_reg_rdata1_id, fp_reg_rdata2_id;    // after WB-forward mux
+    logic        forward_fp_rd1_id, forward_fp_rd2_id;
+    // EXE stage
+    logic [31:0] fp_reg_rdata1_exe, fp_reg_rdata2_exe;
+    logic [31:0] fp_rs1_frw_exe, fp_rs2_frw_exe;   // after EX-stage FP forwarding
+    logic        is_fp_exe;
+    logic        fp_uses_rs1_exe, fp_uses_rs2_exe;
+    logic [4:0]  fpu_op_exe;
+    logic [2:0]  fp_rm_exe;
+    logic [1:0]  forward_fp_rd1_exe, forward_fp_rd2_exe;
+    // MEM stage
+    // is_fp_multicycle_mem, fp_reg_write_mem, fp_wb_to_int_mem are module
+    // outputs (declared in port list). is_fp_mem remains a local helper.
+    logic        is_fp_mem;
+    // WB / WB+1 stage — fpu_unit.result_o is flopped internally at WB+1 timing
+    // (4-stage FPU). fp_reg_file.wdata comes from the WB+1 tail register so the
+    // write fires one cycle after the instruction is in WB. fpu_result_wb1 is
+    // just a readable alias for fpu_unit.result_o.
+    // fp_reg_write_wb / fp_wb_to_int_wb / is_fp_multicycle_wb are module
+    // outputs declared in the port list (exported to hazard_controller).
+    logic [31:0] fpu_result_wb1;
+    logic [4:0]  rd_wb1;
+    logic        fp_reg_write_wb1, fp_wb_to_int_wb1, is_fp_multicycle_wb1;
+
     logic [31:0] imm_id,imm_exe, imm_mem, imm_wb;
     logic [31:0] pc_plus_4_if1, pc_plus_4_id, pc_plus_4_exe, pc_plus_4_mem,pc_plus_4_wb;
     logic [31:0] pc_minus_2_if1;
@@ -263,7 +314,7 @@ module data_path #(
     always_ff @(posedge clk, negedge reset_n) begin
         if (!reset_n)                     fetch_stall_refetch_pc <= 32'h0;
         else if(inst_fetch_stall_trigger) begin 
-            if(load_hazard | mul_hazard)                                fetch_stall_refetch_pc <= current_pc_id;
+            if(load_hazard | mul_hazard | fp_hazard)                    fetch_stall_refetch_pc <= current_pc_id;
             else if((inst_valid_if2 | (|inst_if2)) & ~if_id_reg_clr_ff) fetch_stall_refetch_pc <= corrected_pc_if2;
             else                                                        fetch_stall_refetch_pc <= current_pc_if1;
         end
@@ -456,10 +507,9 @@ module data_path #(
     // ============================================
 
 
-    // Giving descriptive names to field of instructions 
+    // Giving descriptive names to field of instructions
     logic [4:0]  rd_id;
-    logic [6:0]  fun7_id;
-    logic [2:0]  fun3_id;
+    // fun7_id / fun3_id are now module output ports (F extension decode).
     logic [11:0] fun12_id;
 
     // additional signal has been added trap_ret
@@ -518,18 +568,55 @@ module data_path #(
     assign dbg_gpr_write = dbg_ar_en & dbg_ar_wr & 
                            (dbg_ar_ad>= 32'h1000 && dbg_ar_ad <= 32'h101f);
 
-    // register file (decode stage)
+    // Integer register file (decode stage).
+    //   Port 1 (main): the normal WB write — ALU, MUL, load, etc. For FP→int
+    //     instructions (FCVT.W.S/WU, FMV.X.W, FCLASS, FEQ/FLT/FLE) we gate
+    //     this port OFF because the result isn't at WB for 4-stage FPU;
+    //     port 2 handles it one cycle later.
+    //   Port 2 (fp-delayed): fires at WB+1 from the tail register with
+    //     fpu_unit's flopped result. The reg_file has write-before-read
+    //     bypass so a consumer at ID reads the new value on the same edge.
     reg_file reg_file_inst (
         .clk         (clk        ),
         .reset_n     (reset_n    ),
-        .reg_write   (core_halted? dbg_gpr_write  : reg_write_wb),
-        .raddr1      (core_halted? dbg_ar_ad[4:0] : rs1_id),
+        // Port 1 — main WB write (gated for fp_wb_to_int so port 2 owns that path)
+        .reg_write   (core_halted ? dbg_gpr_write
+                                  : reg_write_wb & ~fp_wb_to_int_wb),
+        .waddr       (core_halted ? dbg_ar_ad[4:0] : rd_wb),
+        .wdata       (core_halted ? dbg_ar_do      : reg_wdata_wb),
+        // Port 2 — FP→int WB+1 write
+        .reg_write2  (fp_wb_to_int_wb1),
+        .waddr2      (rd_wb1),
+        .wdata2      (fpu_result_wb1),
+        // Reads
+        .raddr1      (core_halted ? dbg_ar_ad[4:0] : rs1_id),
         .raddr2      (rs2_id),
-        .waddr       (core_halted? dbg_ar_ad[4:0] : rd_wb),
-        .wdata       (core_halted? dbg_ar_do      : reg_wdata_wb),
         .rdata1      (reg_rdata1),
         .rdata2      (reg_rdata2)
     );
+
+    // FP register file (decode stage). The write port is driven from the
+    // WB+1 tail register, since the 4-stage FPU delivers its result one cycle
+    // after the instruction is in WB. Read ports use write-before-read bypass
+    // inside the regfile, so a consumer at ID sees the result on the same
+    // rising edge the write fires — no separate forwarding mux needed here.
+    fp_reg_file fp_reg_file_inst (
+        .clk       (clk),
+        .reset_n   (reset_n),
+        .reg_write (fp_reg_write_wb1),
+        .raddr1    (rs1_id),
+        .raddr2    (rs2_id),
+        .waddr     (rd_wb1),
+        .wdata     (fpu_result_wb1),
+        .rdata1    (fp_rdata1_raw),
+        .rdata2    (fp_rdata2_raw)
+    );
+
+    // WB→ID FP forwarding is replaced by fp_reg_file's write-before-read
+    // bypass. Tie the old mux selects to 0; the read ports already return the
+    // being-written value for same-address hits.
+    assign forward_fp_rd1_id = 1'b0;
+    assign forward_fp_rd2_id = 1'b0;
 
 
     // Immediate unit (decode stage_)
@@ -558,7 +645,25 @@ module data_path #(
         .in0(reg_rdata2),
         .in1(reg_wdata_wb),
         .out_(reg_rdata2_id)
-    );  
+    );
+
+    // FP ID-stage read pass-through. With 4-stage FPU the WB+1 write and the
+    // ID read share a cycle; fp_reg_file's internal write-before-read bypass
+    // covers that case, so these muxes just forward the raw read.
+    // (Keeping the muxes to preserve the module's shape; sel is tied 0.)
+    mux2x1 #(32) fp_reg_file_rd1_mux (
+        .sel(forward_fp_rd1_id),
+        .in0(fp_rdata1_raw),
+        .in1(fpu_result_wb1),
+        .out_(fp_reg_rdata1_id)
+    );
+
+    mux2x1 #(32) fp_reg_file_rd2_mux (
+        .sel(forward_fp_rd2_id),
+        .in0(fp_rdata2_raw),
+        .in1(fpu_result_wb1),
+        .out_(fp_reg_rdata2_id)
+    );
 
     // ============================================
     //             ID-EXE Pipeline Register
@@ -603,14 +708,24 @@ module data_path #(
         illegal_inst_id,
         inst_valid_id,
         ebreak_inst_id,
-        inst_id
+        inst_id,
+        // F extension (Challenge 0013) — order matches id_exe_reg_t field order
+        fp_reg_rdata1_id,
+        fp_reg_rdata2_id,
+        is_fp_id,
+        fp_reg_write_id,
+        fp_wb_to_int_id,
+        fp_uses_rs1_id,
+        fp_uses_rs2_id,
+        fpu_op_id,
+        fp_rm_id
     };
 
     n_bit_reg_wclr #(
     `ifdef tracer
         .n($bits(id_exe_reg_t)) // Automatically sets width
     `else
-        .n(267)
+        .n(344) // 267 + 77 F-extension bits (fp_rdata1/2 + 5 flags + fpu_op[5] + fp_rm[3])
     `endif
     ) id_exe_reg (
         .clk(clk),
@@ -662,8 +777,24 @@ module data_path #(
     assign ebreak_inst_exe   = id_exe_bus_o.ebreak_inst;
     assign inst_exe          = id_exe_bus_o.inst;
 
+    // F extension unpacks
+    assign fp_reg_rdata1_exe = id_exe_bus_o.fp_reg_rdata1;
+    assign fp_reg_rdata2_exe = id_exe_bus_o.fp_reg_rdata2;
+    assign is_fp_exe         = id_exe_bus_o.is_fp;
+    assign fp_reg_write_exe  = id_exe_bus_o.fp_reg_write;
+    assign fp_wb_to_int_exe  = id_exe_bus_o.fp_wb_to_int;
+    assign fp_uses_rs1_exe   = id_exe_bus_o.fp_uses_rs1;
+    assign fp_uses_rs2_exe   = id_exe_bus_o.fp_uses_rs2;
+    assign fpu_op_exe        = id_exe_bus_o.fpu_op;
+    assign fp_rm_exe         = id_exe_bus_o.fp_rm;
+
+    // FPU is now 2-stage pipelined (Challenge 0013, Strategy #1): every FP
+    // op in EX produces its result in MEM, so all FP ops are "multicycle"
+    // from the hazard controller's point of view.
+    assign is_fp_multicycle_exe = is_fp_exe;
+
     // ============================================
-    //                Execute Stage 
+    //                Execute Stage
     // ============================================
 
     // forwarding multiplexers
@@ -685,7 +816,59 @@ module data_path #(
         .in1(result_mem),
         .in2(reg_wdata_wb),
         .out_(rdata2_frw_exe)
-    );      
+    );
+
+    // ------- FP EX-stage forwarding (4-stage FP pipeline) ----------------
+    // FP results are valid only at WB+1, and fp_hazard_{exe,mem,wb} stalls
+    // every consumer until the producer reaches WB+1. By that cycle the
+    // fp_reg_file's write-before-read bypass has already handled the ID-stage
+    // read, so the value is correctly captured in fp_reg_rdata*_exe. No
+    // EX-stage FP forwarding is required.
+    assign forward_fp_rd1_exe[0] = 1'b0;
+    assign forward_fp_rd1_exe[1] = 1'b0;
+    assign forward_fp_rd2_exe[0] = 1'b0;
+    assign forward_fp_rd2_exe[1] = 1'b0;
+
+    mux3x1 #(32) fp_forwarding_mux_a (
+        .sel(forward_fp_rd1_exe),
+        .in0(fp_reg_rdata1_exe),
+        .in1(32'd0),
+        .in2(fpu_result_wb1),
+        .out_(fp_rs1_frw_exe)
+    );
+
+    mux3x1 #(32) fp_forwarding_mux_b (
+        .sel(forward_fp_rd2_exe),
+        .in0(fp_reg_rdata2_exe),
+        .in1(32'd0),
+        .in2(fpu_result_wb1),
+        .out_(fp_rs2_frw_exe)
+    );
+
+    // ------- FPU unit (combinational for Challenge 0013) -----------------
+    // Resolve DYN rounding (rm == 3'b111): spec requires looking up the live
+    // frm CSR — not treating DYN as RNE. frm_csr is bypass-aware so a
+    // back-to-back `csrrwi frm, <mode>; fadd.s` picks up the new mode.
+    logic [2:0] fp_rm_resolved;
+    assign fp_rm_resolved = (fp_rm_exe == 3'b111) ? frm_csr : fp_rm_exe;
+
+    // fpu_unit is 4-stage (split FMUL 2b/2c + uniform output flop). `result_o`
+    // appears at WB+1 timing (three cycles after inputs leave EX), flopped
+    // inside the unit. `stall_i = ~exe_mem_reg_en` freezes every internal
+    // stage together so the result stays stable during downstream stalls.
+    fpu_unit fpu_unit_inst (
+        .clk           (clk),
+        .reset_n       (reset_n),
+        .stall_i       (~exe_mem_reg_en),
+        .op_i          (fpu_op_exe),
+        .rm_i          (fp_rm_resolved),
+        .fp_rs1_i      (fp_rs1_frw_exe),
+        .fp_rs2_i      (fp_rs2_frw_exe),
+        .int_rs1_i     (rdata1_frw_exe), // for FMV.W.X, FCVT.S.W/WU
+        .fmul_product_i(mul_full_result_mem[47:0]),
+        .result_o      (fpu_result_wb1),
+        .busy_o        ()
+    );
 
 
     // jalr multiplexer
@@ -773,17 +956,39 @@ module data_path #(
 
 
     // ============================================
-    //               Two Stage Multiplier
+    //    Two Stage Multiplier — shared int/FP (Strategy #2)
     // ============================================
+    // When FMUL is in EX, hijack mul_unit with the FP mantissas zero-
+    // extended to 32 bits and funct3 = MULHU (3'b011). mul_unit's internal
+    // partial-product flops then carry the FMUL product into MEM, where
+    // fpu_mul's stage 2 picks it up via fmul_product_i. The 48-bit
+    // mantissa product lives in the lower 48 bits of mul_unit.full_result_o.
+    wire        is_fmul_exe = is_fp_exe & (fpu_op_exe == 5'd3);
+
+    // Unpack FP mantissas (implicit-1 for normals, 0 for subnormals).
+    wire        fp_rs1_is_sub_exe = (fp_rs1_frw_exe[30:23] == 8'd0) & (fp_rs1_frw_exe[22:0] != 23'd0);
+    wire        fp_rs2_is_sub_exe = (fp_rs2_frw_exe[30:23] == 8'd0) & (fp_rs2_frw_exe[22:0] != 23'd0);
+    wire [23:0] fp_rs1_mant24_exe = fp_rs1_is_sub_exe ? {1'b0, fp_rs1_frw_exe[22:0]}
+                                                      : {1'b1, fp_rs1_frw_exe[22:0]};
+    wire [23:0] fp_rs2_mant24_exe = fp_rs2_is_sub_exe ? {1'b0, fp_rs2_frw_exe[22:0]}
+                                                      : {1'b1, fp_rs2_frw_exe[22:0]};
+
+    wire [31:0] mul_rs1_in  = is_fmul_exe ? {8'b0, fp_rs1_mant24_exe} : rdata1_frw_exe;
+    wire [31:0] mul_rs2_in  = is_fmul_exe ? {8'b0, fp_rs2_mant24_exe} : rdata2_frw_exe;
+    wire [2:0]  mul_funct3_in = is_fmul_exe ? 3'b011 /*MULHU*/ : fun3_exe;
+
+    wire [63:0] mul_full_result_mem;
+
     mul_unit #(32) mul_inst (
-        .clk(clk),
-        .reset_n(reset_n),
-        .stall_i(~exe_mem_reg_en),
-        .funct3_i(fun3_exe),
-        .rs1_i(rdata1_frw_exe),
-        .rs2_i(rdata2_frw_exe),
-        .result_o(mul_result_mem)
-    );   
+        .clk          (clk),
+        .reset_n      (reset_n),
+        .stall_i      (~exe_mem_reg_en),
+        .funct3_i     (mul_funct3_in),
+        .rs1_i        (mul_rs1_in),
+        .rs2_i        (mul_rs2_in),
+        .result_o     (mul_result_mem),
+        .full_result_o(mul_full_result_mem)
+    );
 
     // ============================================
     //   Multicycle Division (out_ of the Pipeline)
@@ -844,7 +1049,14 @@ module data_path #(
     illegal_inst_exe,
     inst_valid_exe,
     ebreak_inst_exe,
-    inst_exe
+    inst_exe,
+    // F extension (Challenge 0013) — order matches exe_mem_reg_t.
+    // fpu_result no longer rides this register (fpu_unit is 2-stage and
+    // drives fpu_result_mem directly, same pattern as mul_result_mem).
+    is_fp_exe,
+    fp_reg_write_exe,
+    fp_wb_to_int_exe,
+    is_fp_multicycle_exe
     `ifdef tracer
         ,rs1_exe
     `endif
@@ -854,7 +1066,7 @@ module data_path #(
     `ifdef tracer
         .n($bits(exe_mem_reg_t)) // Automatically sets width
     `else
-        .n(297)
+        .n(301) // 297 + 4 F-extension bits (fp flags); fpu_result no longer flopped here
     `endif
     ) exe_mem_reg (
         .clk(clk),
@@ -895,7 +1107,16 @@ module data_path #(
     assign ebreak_inst_mem     = exe_mem_bus_o.ebreak_inst;
 
     assign inst_mem            = exe_mem_bus_o.inst;
-    `ifdef tracer 
+
+    // F extension unpacks (MEM stage) — fpu_result_mem is now driven
+    // directly by fpu_unit (2-stage pipelined, Strategy #1), not by the
+    // EX→MEM pipeline register.
+    assign is_fp_mem           = exe_mem_bus_o.is_fp;
+    assign fp_reg_write_mem    = exe_mem_bus_o.fp_reg_write;
+    assign fp_wb_to_int_mem    = exe_mem_bus_o.fp_wb_to_int;
+    assign is_fp_multicycle_mem= exe_mem_bus_o.is_fp_multicycle;
+
+    `ifdef tracer
     assign rs1_mem             = exe_mem_bus_o.rs1;
     `endif
 
@@ -1047,6 +1268,8 @@ module data_path #(
     // 'func_score': 100.0, 'area_score': 61.12, 'perf_score': 90.28, 'power_score': 32.36, 'overall': 60.96
     // assign dbg_csr_write = dbg_ar_en & dbg_ar_wr & ~|dbg_ar_ad[15 -:4];
 
+    logic [2:0] frm_csr;   // live frm exported from csr_file, drives FPU DYN mode.
+
     csr_file csr_file_inst (
         .clk             (clk           ),
         .reset_n         (reset_n       ),
@@ -1062,13 +1285,14 @@ module data_path #(
         .exception_i     (exception_mem ),
         .e_code          (e_code_mem    ),
         .timer_irq       (timer_irq     ),
-        .external_irq    (external_irq  ), 
+        .external_irq    (external_irq  ),
         .trap            (trap          ),
         .mtvec           (tvec          ),
         .mepc            (trap_return_pc),
         .trap_cause      (trap_cause    ),
         .trap_ret        (trap_ret & ~dont_trap),
-        .mtval_i         (mtval)
+        .mtval_i         (mtval),
+        .frm_o           (frm_csr)
     );
 
     assign dbg_csr_result = trap ? csr_rdata_mem : 'b0;
@@ -1090,9 +1314,14 @@ module data_path #(
         .out_(mem_result_mux_1_o)
     );
 
-    // div result is included in the mem result but mul is not becuase of critical path caused by mul
-    assign result_mem = div_ready                ? div_result : 
-                        is_atomic_mem            ? atomic_unit_wdata_mem : mem_result_mux_1_o; 
+    // div result is included in the mem result but mul is not becuase of critical path caused by mul.
+    // fp_wb_to_int producers (FCVT.W.S / FCVT.WU.S / FMV.X.W) are 3-stage FP
+    // now — their result is NOT available at MEM. The hazard controller
+    // stalls any dependent int consumer until the producer reaches WB, so
+    // we no longer need a MEM-stage FP path here.
+    assign result_mem = div_ready     ? div_result :
+                        is_atomic_mem ? atomic_unit_wdata_mem :
+                        mem_result_mux_1_o;
     assign rd_mem     = div_ready ? div_rd    : exe_mem_bus_o.rd;  
     assign reg_write_mem  = reg_write_mem_ | is_mul_mem | div_ready;
     assign current_pc_mem = (div_ready | div_busy) ? div_pc : current_pc_mem_; 
@@ -1116,9 +1345,15 @@ module data_path #(
     reg_write_mem,
     mem_to_reg_req_mem,
     is_mul_mem,
-    inst_valid_mem
+    inst_valid_mem,
+    // F extension (Challenge 0013) — order matches mem_wb_reg_t.
+    // fpu_result is not flopped here — fpu_unit drives fpu_result_wb1 directly
+    // directly from its WB-stage combinational output.
+    fp_reg_write_mem,
+    fp_wb_to_int_mem,
+    is_fp_multicycle_mem
 
-    `ifdef tracer 
+    `ifdef tracer
     ,pc_sel_mem,
     inst_mem, 
     rs1_mem, 
@@ -1135,8 +1370,8 @@ module data_path #(
     n_bit_reg_wclr #(
     `ifdef tracer
         .n($bits(mem_wb_reg_t)) // Automatically sets width
-    `else 
-        .n(138)
+    `else
+        .n(108) // 105 + 3 F-extension flag bits (fpu_result moved out; is_fp_multicycle tracked)
     `endif
     ) mem_wb_reg (
         .clk(clk),
@@ -1160,6 +1395,30 @@ module data_path #(
     assign is_mul_wb                = mem_wb_bus_o.is_mul;
     assign inst_valid_wb            = mem_wb_bus_o.inst_valid;
 
+    // F extension unpacks (WB stage).
+    assign fp_reg_write_wb          = mem_wb_bus_o.fp_reg_write;
+    assign fp_wb_to_int_wb          = mem_wb_bus_o.fp_wb_to_int;
+    assign is_fp_multicycle_wb      = mem_wb_bus_o.is_fp_multicycle;
+
+    // --- WB+1 tail register -----------------------------------------------
+    // Carries {rd, fp_reg_write, fp_wb_to_int, is_fp_multicycle} one cycle
+    // past WB so the delayed fp_reg_file / reg_file (port 2) writes land in
+    // the same cycle fpu_unit.result_o is valid. Enabled by mem_wb_reg_en so
+    // it advances in lockstep with the main pipeline (and fpu_unit).
+    always_ff @(posedge clk or negedge reset_n) begin
+        if (!reset_n) begin
+            rd_wb1               <= 5'd0;
+            fp_reg_write_wb1     <= 1'b0;
+            fp_wb_to_int_wb1     <= 1'b0;
+            is_fp_multicycle_wb1 <= 1'b0;
+        end else if (mem_wb_reg_en) begin
+            rd_wb1               <= rd_wb;
+            fp_reg_write_wb1     <= fp_reg_write_wb;
+            fp_wb_to_int_wb1     <= fp_wb_to_int_wb;
+            is_fp_multicycle_wb1 <= is_fp_multicycle_wb;
+        end
+    end
+
     `ifdef tracer 
     assign pc_sel_wb                = mem_wb_bus_o.pc_sel;
     assign inst_wb                  = mem_wb_bus_o.inst;
@@ -1178,25 +1437,71 @@ module data_path #(
     // ============================================
 
 
-    assign reg_wdata_wb = is_mul_wb    ? mul_result_wb:
-                          mem_to_reg_wb ? mem_rdata_wb : non_mul_result_wb; 
+    // Int WB writeback path. fp_wb_to_int results are NOT muxed here — they
+    // arrive one cycle later at WB+1 and are written via reg_file's port 2.
+    assign reg_wdata_wb = is_mul_wb        ? mul_result_wb  :
+                          mem_to_reg_wb    ? mem_rdata_wb   :
+                          non_mul_result_wb;
     assign rd_wb        = rd_wb_;
     assign reg_write_wb = reg_write_wb_;
 
     `ifdef tracer
-        assign rvfi_insn      = inst_wb;
-        assign rvfi_rs1_addr  = rs1_wb;
-        assign rvfi_rs2_addr  = rs2_wb;
-        assign rvfi_rd_addr   = rd_wb;
-        assign rvfi_rs1_rdata = reg_rdata1_wb;
-        assign rvfi_rs2_rdata = reg_rdata2_wb;
-        assign rvfi_rd_wdata  = reg_wdata_wb;
-        assign rvfi_pc_rdata  = current_pc_wb;
-        assign rvfi_pc_wdata  = pc_sel_wb ? current_pc_if1 : current_pc_mem;
+        // 4-stage FPU: FP results commit at WB+1, not WB. All tracer fields
+        // pulled from mem_wb_bus_o are flopped one cycle so the emitted tuple
+        // lines up with the cycle fpu_unit.result_o (= fpu_result_wb1) is
+        // valid. rd_wb1 / fp_reg_write_wb1 already exist as the real WB+1
+        // tail; we reuse them here so port-2 writes and rvfi stay in sync.
+        // fpu_result_wb1 is the combinational fpu_unit output — grabbed live
+        // at emit cycle, NOT flopped again.
+        logic [31:0] inst_tr, current_pc_tr;
+        logic [31:0] reg_rdata1_tr, reg_rdata2_tr, reg_wdata_tr;
+        logic [4:0]  rs1_tr, rs2_tr;
+        logic        inst_valid_tr, pc_sel_tr;
+        logic [31:0] current_pc_mem_tr, current_pc_if1_tr;
+
+        always_ff @(posedge clk or negedge reset_n) begin
+            if (!reset_n) begin
+                inst_tr            <= 32'd0;
+                rs1_tr             <= 5'd0;
+                rs2_tr             <= 5'd0;
+                reg_rdata1_tr      <= 32'd0;
+                reg_rdata2_tr      <= 32'd0;
+                reg_wdata_tr       <= 32'd0;
+                current_pc_tr      <= 32'd0;
+                current_pc_mem_tr  <= 32'd0;
+                current_pc_if1_tr  <= 32'd0;
+                inst_valid_tr      <= 1'b0;
+                pc_sel_tr          <= 1'b0;
+            end else if (mem_wb_reg_en) begin
+                inst_tr            <= inst_wb;
+                rs1_tr             <= rs1_wb;
+                rs2_tr             <= rs2_wb;
+                reg_rdata1_tr      <= reg_rdata1_wb;
+                reg_rdata2_tr      <= reg_rdata2_wb;
+                reg_wdata_tr       <= reg_wdata_wb;
+                current_pc_tr      <= current_pc_wb;
+                current_pc_mem_tr  <= current_pc_mem;
+                current_pc_if1_tr  <= current_pc_if1;
+                inst_valid_tr      <= inst_valid_wb;
+                pc_sel_tr          <= pc_sel_wb;
+            end
+        end
+
+        assign rvfi_insn      = inst_tr;
+        assign rvfi_rs1_addr  = rs1_tr;
+        assign rvfi_rs2_addr  = rs2_tr;
+        assign rvfi_rd_addr   = rd_wb1;
+        assign rvfi_rs1_rdata = reg_rdata1_tr;
+        assign rvfi_rs2_rdata = reg_rdata2_tr;
+        assign rvfi_rd_wdata  = fp_reg_write_wb1 ? fpu_result_wb1
+                              : fp_wb_to_int_wb1 ? fpu_result_wb1
+                                                 : reg_wdata_tr;
+        assign rvfi_pc_rdata  = current_pc_tr;
+        assign rvfi_pc_wdata  = pc_sel_tr ? current_pc_if1_tr : current_pc_mem_tr;
         assign rvfi_mem_addr  = 32'd0;
         assign rvfi_mem_rdata = 32'd0;
         assign rvfi_mem_wdata = 32'd0;
-        assign rvfi_valid     = inst_valid_wb;
+        assign rvfi_valid     = inst_valid_tr;
     `endif
 
 

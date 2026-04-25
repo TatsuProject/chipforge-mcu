@@ -60,9 +60,28 @@
     endfunction
 
     // Store operation types
-    typedef enum logic [1:0] { 
-        STORE_BYTE, STORE_HALFWORD, STORE_WORD 
+    typedef enum logic [1:0] {
+        STORE_BYTE, STORE_HALFWORD, STORE_WORD
     } store_t;
+
+    // FPU operation types (basic RV32F subset — Challenge 0013)
+    typedef enum logic [4:0] {
+        FPU_NOP     = 5'd0,
+        FPU_ADD     = 5'd1,
+        FPU_SUB     = 5'd2,
+        FPU_MUL     = 5'd3,
+        FPU_MIN     = 5'd4,
+        FPU_MAX     = 5'd5,
+        FPU_SGNJ    = 5'd6,
+        FPU_SGNJN   = 5'd7,
+        FPU_SGNJX   = 5'd8,
+        FPU_CVT_W_S = 5'd9,
+        FPU_CVT_WU_S= 5'd10,
+        FPU_CVT_S_W = 5'd11,
+        FPU_CVT_S_WU= 5'd12,
+        FPU_MV_X_W  = 5'd13,
+        FPU_MV_W_X  = 5'd14
+    } fpu_op_e;
 
     // IF1/IF2 Register Structure
     typedef struct packed {
@@ -115,6 +134,16 @@
         logic        inst_valid;
         logic        ebreak_inst;
         logic [31:0] inst;
+        // F extension (Challenge 0013) — appended at end so concat-matching stays mechanical
+        logic [31:0] fp_reg_rdata1;
+        logic [31:0] fp_reg_rdata2;
+        logic        is_fp;
+        logic        fp_reg_write;
+        logic        fp_wb_to_int;
+        logic        fp_uses_rs1;
+        logic        fp_uses_rs2;
+        logic [4:0]  fpu_op;
+        logic [2:0]  fp_rm;
     } id_exe_reg_t;
 
     // EX/MEM Register Structure
@@ -148,6 +177,13 @@
         logic        inst_valid;
         logic        ebreak_inst;
         logic [31:0] inst;
+        // F extension (Challenge 0013)
+        // fpu_result is produced in the MEM stage now (fpu_unit is 2-stage),
+        // so it no longer needs to ride the EX→MEM pipeline register.
+        logic        is_fp;
+        logic        fp_reg_write;
+        logic        fp_wb_to_int;
+        logic        is_fp_multicycle;
         `ifdef tracer
             logic [4:0]  rs1;
         `endif
@@ -164,7 +200,12 @@
         logic        mem_to_reg;
         logic        is_mul;
         logic        inst_valid;
-        `ifdef tracer 
+        // F extension (Challenge 0013) — fpu_result moved out (driven by
+        // fpu_unit's WB-stage combinational output directly).
+        logic        fp_reg_write;
+        logic        fp_wb_to_int;
+        logic        is_fp_multicycle;
+        `ifdef tracer
             logic        pc_sel;
             logic [31:0] inst;
             logic [4:0]  rs1;

@@ -10,23 +10,32 @@ import argparse
 import os
 import re
 import sys
-import logging
 
-# Ensure the scripts directory (where this file lives) is on sys.path so that
-# sibling modules (riscv_trace_csv, lib) can be imported directly.
-sys.path.insert(0, os.path.dirname(os.path.realpath(__file__)))
+_CORE_ROOT = os.path.normpath(os.path.join(os.path.dirname(__file__),
+                                           '../'))
+_DV_SCRIPTS = os.path.join(_CORE_ROOT, '../../../google_riscv_dv/scripts')
+_OLD_SYS_PATH = sys.path
 
-from riscv_trace_csv import (RiscvInstructionTraceCsv,
-                             RiscvInstructionTraceEntry,
-                             get_imm_hex_val)
-from lib import RET_FATAL, gpr_to_abi, sint_to_hex
+# Import riscv_trace_csv and lib from _DV_SCRIPTS before putting sys.path back
+# as it started.
+try:
+    sys.path.insert(0, _DV_SCRIPTS)
+
+    from riscv_trace_csv import (RiscvInstructionTraceCsv,
+                                 RiscvInstructionTraceEntry,
+                                 get_imm_hex_val)
+    from lib import RET_FATAL, gpr_to_abi, sint_to_hex
+    import logging
+
+finally:
+    sys.path = _OLD_SYS_PATH
 
 
 INSTR_RE = re.compile(
     r"^\s*(?P<time>\d+(?:\.\d+)?)(?:\s+ns)?\s+(?P<cycle>\d+)\s+"
     r"(?P<pc>[0-9a-f]+)\s+(?P<bin>[0-9a-f]+)\s+(?P<instr>\S+\s+\S+)\s*"
 )
-RD_RE = re.compile(r"(x(?P<rd>[1-9]\d*)=0x(?P<rd_val>[0-9a-f]+))")
+RD_RE = re.compile(r"((?P<prefix>[xf])(?P<rd>\d+)=0x(?P<rd_val>[0-9a-f]+))")
 ADDR_RE = re.compile(r"(?P<imm>[\-0-9]+?)\((?P<rs1>.*)\)")
 OPERANDS_RE = re.compile(r"(?P<reg1>\w+),(?P<imm>[0-9a-fA-F-]+)\((?P<reg2>\w+)\)")
 ECALL_RE = re.compile(r"^\s*(?P<time>\d+)\s+(?P<cycle>\d+)\s+(?P<pc>[0-9a-f]+)\s+(?P<bin>[0-9a-f]+)\s+ecall")
@@ -90,7 +99,8 @@ def _process_core_sim_log_fd(log_fd, csv_fd, full_trace=True):
                 if not hasattr(trace_entry, 'gpr') or trace_entry.gpr is None:
                     trace_entry.gpr = []
                 trace_entry.gpr.append('{}:{}'
-                                    .format(gpr_to_abi("x%0s" % c.group("rd")),
+                                    .format(gpr_to_abi("%s%s" % (c.group("prefix"),
+                                                                  c.group("rd"))),
                                             c.group("rd_val")))
                 trace_csv.write_trace_entry(trace_entry)
 

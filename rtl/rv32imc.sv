@@ -71,16 +71,28 @@ module rv32i #(
     logic is_mul_exe;
     logic div_busy;
 
-    // data path to the controller 
+    // data path to the controller
     logic [6:0] opcode_id;
     logic [2:0] fun3_exe, fun3_mem;
     logic zero_mem;
     logic [1:0] alu_op_exe;
-    logic jump_mem; 
+    logic jump_mem;
     logic branch_mem;
 
-    // additional signal has been added 
+    // additional signal has been added
     logic [6:0] fun7_exe;
+
+    // F extension decode signals (Challenge 0013) — produced in data_path,
+    // consumed by control_unit's decode_control instance via `.*`.
+    logic [6:0] fun7_id;
+    logic [2:0] fun3_id;
+    logic       is_fp_id;
+    logic       fp_reg_write_id;
+    logic       fp_wb_to_int_id;
+    logic       fp_uses_rs1_id;
+    logic       fp_uses_rs2_id;
+    logic [4:0] fpu_op_id;
+    logic [2:0] fp_rm_id;
 
 
     // data path to the controller (forwarding unit)
@@ -142,6 +154,18 @@ module rv32i #(
 
     logic        load_hazard;
     logic        mul_hazard;
+    logic        fp_hazard;
+
+    // F extension EX/MEM/WB-stage flags for hazard_controller (4-stage FP)
+    logic        is_fp_multicycle_exe;
+    logic        fp_reg_write_exe;
+    logic        fp_wb_to_int_exe;
+    logic        is_fp_multicycle_mem;
+    logic        fp_reg_write_mem;
+    logic        fp_wb_to_int_mem;
+    logic        is_fp_multicycle_wb;
+    logic        fp_reg_write_wb;
+    logic        fp_wb_to_int_wb;
 
     logic        stall_pipl;
 

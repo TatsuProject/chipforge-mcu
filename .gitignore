@@ -12,3 +12,6 @@ verif/results/
 # Python
 __pycache__/
 *.pyc
+
+# Local agent / scratch notes (not for upstream)
+CLAUDE.md
